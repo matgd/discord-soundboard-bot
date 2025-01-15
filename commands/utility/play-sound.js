@@ -30,7 +30,7 @@ module.exports = {
 		);
 	},
     async execute(interaction) {
-        const soundNameId = interaction.options.getString('identifier') ?? 'No identifier provided.';
+        let soundNameId = interaction.options.getString('identifier') ?? 'No identifier provided.';
 
         let connection = getVoiceConnection(interaction.guildId);
         if (!connection) {
@@ -41,14 +41,16 @@ module.exports = {
             return;
         }
 
-        const soundPath = interaction.client.sounds.get(soundNameId);
-        if (!soundPath) {
+        const matchingPaths = interaction.client.soundsIds.filter(s => s.startsWith(soundNameId));
+        const foundSoundId = matchingPaths[0];
+        if (!foundSoundId) {
             await interaction.reply({
                 content: '*Sound not found.*',
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
             });
             return;
         }
+        const soundPath = interaction.client.sounds.get(foundSoundId);
 
         const player = createAudioPlayer();
         connection.subscribe(player);
@@ -56,7 +58,7 @@ module.exports = {
         player.play(resource);
 
         await interaction.reply({
-            content: `Playing: ${soundNameId}`,
+            content: `**Playing:** ${foundSoundId}`,
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
 	}
