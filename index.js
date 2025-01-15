@@ -82,8 +82,8 @@ client.on(Events.InteractionCreate, async interaction => {
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isAutocomplete())
         return;
-    const command = interaction.client.commands.get(interaction.commandName);
 
+    const command = interaction.client.commands.get(interaction.commandName);
     if (!command) {
         console.error(`No command matching ${interaction.commandName} was found.`);
         return;

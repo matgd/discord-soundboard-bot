@@ -131,4 +131,5 @@ dist
 
 # Contains secrets
 config.json
+config.json.dev
 sounds/

@@ -14,6 +14,9 @@ module.exports = {
         .addStringOption(option =>
                 option.setName('identifier')
                     .setDescription('Name identifier of sound.')
+                    .setDescriptionLocalizations({
+                        pl: 'Identyfikator nazwy dźwięku.',
+                    })
         			.setRequired(true)
                     .setAutocomplete(true)),
     async autocomplete(interaction) {
@@ -40,7 +43,10 @@ module.exports = {
 
         const soundPath = interaction.client.sounds.get(soundNameId);
         if (!soundPath) {
-            await interaction.reply('*Sound not found.*');
+            await interaction.reply({
+                content: '*Sound not found.*',
+                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
+            });
             return;
         }
 
