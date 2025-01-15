@@ -4,7 +4,7 @@ const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
 const { basenameToId } = require('./utils');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 
 client.commands = new Collection();
 client.sounds = new Collection();
@@ -95,7 +95,6 @@ client.on(Events.InteractionCreate, async interaction => {
         console.error(error);
     }   
 });
-
 
 // Log in to Discord with your client's token
 client.login(token);
