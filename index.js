@@ -8,7 +8,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 
 client.commands = new Collection();
 client.sounds = new Collection();
-client.soundsAutocomplete = [];
+client.soundsIds = [];
 
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -34,19 +34,14 @@ for (const file of soundFiles) {
     const filePath = path.join(soundsPath, file);
     const soundId = basenameToId(path.basename(filePath, '.mp3'));
     client.sounds.set(soundId, filePath);
-    client.soundsAutocomplete.push(soundId);
+    client.soundsIds.push(soundId);
 }
 
-console.log(`Loaded ${client.commands.size} commands:`);
-client.commands.forEach(command => {
-    console.log(`- ${command.data.name}`);
-});
-console.log();
-console.log(`Loaded ${client.sounds.size} sounds:`);
-client.sounds.forEach((soundPath, soundId) => {
-    console.log(`- ${soundId}: ${path.basename(soundPath)}`);
-});
-console.log();
+// Too lazy for Insert Sort
+client.soundsIds.sort();
+
+console.log(`Loaded ${client.commands.size} commands.`);
+console.log(`Loaded ${client.sounds.size} sounds.`);
 
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.

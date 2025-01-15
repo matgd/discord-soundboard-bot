@@ -20,7 +20,7 @@ module.exports = {
         connection.destroy();
         return await interaction.reply({
             content: 'Bye!',
-            flags: [MessageFlags.SuppressNotifications],
+            flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
 	},
 };

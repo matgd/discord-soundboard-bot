@@ -21,7 +21,7 @@ module.exports = {
                     .setAutocomplete(true)),
     async autocomplete(interaction) {
 		const focusedValue = interaction.options.getFocused();
-        const choices = interaction.client.soundsAutocomplete;
+        const choices = interaction.client.soundsIds;
 
 		let filtered = choices.filter(choice => choice.startsWith(focusedValue));
         filtered = filtered.slice(0, AUTOCOMPLETE_CHOICE_LIMIT);

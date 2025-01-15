@@ -12,10 +12,7 @@ module.exports = {
             pl: 'Wyświetla dostępne dźwięki.',
         }),
 	async execute(interaction) {
-        let soundsIds = [];
-        await interaction.client.sounds.forEach((_, soundId) => {
-            soundsIds.push(`- ${soundId}`);
-        });
+        let soundsIds = interaction.client.soundsIds;
 
         let reply = `**Available sounds (${soundsIds.length}):**\n${soundsIds.join('\n')}`;
         if (reply.length > MAX_CHAR_LIMIT) {
