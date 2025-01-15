@@ -131,3 +131,4 @@ dist
 
 # Contains secrets
 config.json
+sounds/

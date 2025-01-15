@@ -2,10 +2,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
+const { basenameToId } = require('./utils');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
+client.sounds = new Collection();
+client.soundsAutocomplete = [];
 
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -24,6 +27,26 @@ for (const folder of commandFolders) {
 		}
 	}
 }
+
+const soundsPath = path.join(__dirname, 'sounds');
+const soundFiles = fs.readdirSync(soundsPath).filter(file => file.endsWith('.mp3'));
+for (const file of soundFiles) {
+    const filePath = path.join(soundsPath, file);
+    const soundId = basenameToId(path.basename(filePath, '.mp3'));
+    client.sounds.set(soundId, filePath);
+    client.soundsAutocomplete.push(soundId);
+}
+
+console.log(`Loaded ${client.commands.size} commands:`);
+client.commands.forEach(command => {
+    console.log(`- ${command.data.name}`);
+});
+console.log();
+console.log(`Loaded ${client.sounds.size} sounds:`);
+client.sounds.forEach((soundPath, soundId) => {
+    console.log(`- ${soundId}: ${path.basename(soundPath)}`);
+});
+console.log();
 
 // When the client is ready, run this code (only once).
 // The distinction between `client: Client<boolean>` and `readyClient: Client<true>` is important for TypeScript developers.
@@ -76,4 +99,3 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // Log in to Discord with your client's token
 client.login(token);
-

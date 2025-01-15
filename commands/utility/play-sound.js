@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 
 const AUTOCOMPLETE_CHOICE_LIMIT = 25;  // Limit to 25 choices as per docs
-const CHOICES = ['tak', 'nie', 'do roboty'];  // TODO -> compile to file after updating sounds dir?
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -17,7 +16,9 @@ module.exports = {
                     .setAutocomplete(true)),
     async autocomplete(interaction) {
 		const focusedValue = interaction.options.getFocused();
-		let filtered = CHOICES.filter(choice => choice.startsWith(focusedValue));
+        const choices = interaction.client.soundsAutocomplete;
+
+		let filtered = choices.filter(choice => choice.startsWith(focusedValue));
         filtered = filtered.slice(0, AUTOCOMPLETE_CHOICE_LIMIT);
 		await interaction.respond(
 			filtered.map(choice => ({ name: choice, value: choice })),
@@ -25,7 +26,14 @@ module.exports = {
 	},
     async execute(interaction) {
         const soundNameId = interaction.options.getString('identifier') ?? 'No identifier provided.';
-        await interaction.reply(`(Would play) sound with identifier: ${soundNameId}`);
+        const path = require('node:path');
+
+        const soundPath = interaction.client.sounds.get(soundNameId);
+        if (!soundPath) {
+            await interaction.reply('*Sound not found.*');
+            return;
+        }
+        await interaction.reply(`(Would play ${path.basename(soundPath)})`);
 	}
 };
 
