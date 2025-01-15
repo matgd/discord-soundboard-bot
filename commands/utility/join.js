@@ -2,6 +2,7 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } = require('@discordjs/voice');
 
 module.exports = {
+    cooldown: 2,
 	data: new SlashCommandBuilder()
 		.setName('join')
 		.setDescription('Make bot join to the voice channel you are in.')

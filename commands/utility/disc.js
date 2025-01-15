@@ -2,6 +2,7 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { getVoiceConnection } = require('@discordjs/voice');
 
 module.exports = {
+    cooldown: 2,
 	data: new SlashCommandBuilder()
 		.setName('disc')
 		.setDescription('Disconnect bot from the voice channel.')
