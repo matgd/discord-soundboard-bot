@@ -14,10 +14,10 @@ module.exports = {
 	async execute(interaction) {
         let soundsIds = [];
         await interaction.client.sounds.forEach((_, soundId) => {
-            soundsIds.push(soundId);
+            soundsIds.push(`- ${soundId}`);
         });
 
-        let reply = `**Available sounds (${soundsIds.length}):**\n${soundsIds.join(', ')}`;
+        let reply = `**Available sounds (${soundsIds.length}):**\n${soundsIds.join('\n')}`;
         if (reply.length > MAX_CHAR_LIMIT) {
             console.log(`[WARNING] The \\${CMD_NAME} command reply is too long: ${reply.length} > ${MAX_CHAR_LIMIT} characters.`);
             reply = reply.substring(0, MAX_CHAR_LIMIT - 3) + '...';
