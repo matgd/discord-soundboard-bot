@@ -26,8 +26,6 @@ function basenameToId(basename) {
 }
 
 async function playSoundAndReply(interaction, soundId, successMsg = '') {
-    const successMessage = successMsg || `**Playing:** ${soundId}`;
-
     let connection = getVoiceConnection(interaction.guildId);
     if (!connection) {
         await interaction.reply({
@@ -39,6 +37,8 @@ async function playSoundAndReply(interaction, soundId, successMsg = '') {
 
     const matchingPaths = interaction.client.soundsIds.filter(s => s.startsWith(soundId));
     const foundSoundId = matchingPaths[0];
+    const successMessage = successMsg || `**Playing:** ${foundSoundId}`;
+
     if (!foundSoundId) {
         await interaction.reply({
             content: '*Sound not found.*',
