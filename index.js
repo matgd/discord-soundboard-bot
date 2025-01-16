@@ -3,6 +3,8 @@ const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
 const { token } = require('./config.json');
 const { basenameToId } = require('./utils');
+const { ActivityType } = require('discord.js');
+
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 
@@ -48,6 +50,7 @@ console.log(`Loaded ${client.sounds.size} sounds.`);
 // It makes some properties non-nullable.
 client.once(Events.ClientReady, readyClient => {
 	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+    client.user.setActivity('klientów klubu Eksplożyn', { type: ActivityType.Listening });
 });
 
 
