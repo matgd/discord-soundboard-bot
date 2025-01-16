@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const { createAudioPlayer, createAudioResource, getVoiceConnection } = require('@discordjs/voice');
+const { SlashCommandBuilder } = require('discord.js');
+const { playSoundAndReply } = require('../../utils');
 
 const AUTOCOMPLETE_CHOICE_LIMIT = 25;  // Limit to 25 choices as per docs
 
@@ -31,36 +31,7 @@ module.exports = {
 	},
     async execute(interaction) {
         let soundNameId = interaction.options.getString('identifier') ?? 'No identifier provided.';
-
-        let connection = getVoiceConnection(interaction.guildId);
-        if (!connection) {
-            await interaction.reply({
-                content: 'I am not connected to a voice channel!',
-                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-            });
-            return;
-        }
-
-        const matchingPaths = interaction.client.soundsIds.filter(s => s.startsWith(soundNameId));
-        const foundSoundId = matchingPaths[0];
-        if (!foundSoundId) {
-            await interaction.reply({
-                content: '*Sound not found.*',
-                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-            });
-            return;
-        }
-        const soundPath = interaction.client.sounds.get(foundSoundId);
-
-        const player = createAudioPlayer();
-        connection.subscribe(player);
-        const resource = createAudioResource(soundPath);
-        player.play(resource);
-
-        await interaction.reply({
-            content: `**Playing:** ${foundSoundId}`,
-            flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-        });
+        await playSoundAndReply(interaction, soundNameId);
 	}
 };
 
