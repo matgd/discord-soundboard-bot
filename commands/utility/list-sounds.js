@@ -26,7 +26,8 @@ module.exports = {
         let reply = `**Available sounds (${soundsIds.length}):**`;
         // iterate over keys
         for (k of Object.keys(soundsIdsGroups)) {
-            reply += `\n**${k.toUpperCase()}**\n${soundsIdsGroups[k].join(', ')}`;
+            const soundsKeys = soundsIdsGroups[k].map(sId => `\`${sId}\``);
+            reply += `\n**${k.toUpperCase()}**\n${soundsKeys.join(', ')}`;
         }
 
         if (reply.length > MAX_CHAR_LIMIT) {
