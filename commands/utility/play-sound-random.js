@@ -13,7 +13,7 @@ module.exports = {
     async execute(interaction) {
         const soundsIds = interaction.client.soundsIds;
         const randomSoundId = soundsIds[Math.floor(Math.random() * soundsIds.length)];
-        await playSoundAndReply(interaction, randomSoundId, `:game_die: **Playing:** ${randomSoundId}`);
+        await playSoundAndReply(interaction, randomSoundId, `:game_die: **Playing:** ${randomSoundId}`, 10_000);
 	}
 };
 

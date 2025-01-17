@@ -25,7 +25,9 @@ function basenameToId(basename) {
     return modifiedBasename.toLowerCase();
 }
 
-async function playSoundAndReply(interaction, soundId, successMsg = '') {
+async function playSoundAndReply(interaction, soundId, successMsg = '', deleteReplyTime = 3_000) {
+    // deleteReplyTime <= 0 means don't delete the reply
+
     let connection = getVoiceConnection(interaction.guildId);
     if (!connection) {
         await interaction.reply({
@@ -57,6 +59,9 @@ async function playSoundAndReply(interaction, soundId, successMsg = '') {
         content: successMessage,
         flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
     });
+
+    if (deleteReplyTime > 0)
+        setTimeout(() => interaction.deleteReply(), deleteReplyTime);
 }
 
 module.exports = {
