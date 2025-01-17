@@ -6,5 +6,8 @@
     "libsodium-wrappers": "^0.7.15",
     "sodium": "^3.0.2"
   },
-  "main": "index.js"
+  "main": "index.js",
+  "devDependencies": {
+    "prettier": "3.4.2"
+  }
 }
