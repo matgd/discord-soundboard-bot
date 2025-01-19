@@ -27,3 +27,9 @@ RPi 3B+
 ```
 sudo apt install make libtool autoconf automake g++
 ```
+
+## Tests
+
+```
+npm test
+```
