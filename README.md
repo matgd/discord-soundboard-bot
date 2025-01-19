@@ -19,3 +19,11 @@ Set guildId to server you want deploy commands to
 
   
 ./sounds/*.mp3
+
+
+## DietPi
+
+RPi 3B+
+```
+sudo apt install make libtool autoconf automake g++
+```
