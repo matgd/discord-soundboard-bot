@@ -48,6 +48,8 @@ module.exports = {
 
             const now = new Date();
             delay = targetTime - now;
+            // add 1 minute
+            delay += 60 * 1000;
 
             // Check if the time has already passed
             if (delay < 0) {
@@ -77,7 +79,7 @@ module.exports = {
 
             // Ping late users
             const lateMentions = lateUsers.map(userId => `<@${userId}>`).join(' ');
-            const gifUrl = 'https://media1.tenor.com/m/m6iiQt-F0OoAAAAd/najman-marcin.gif';
+            const gifUrl = 'https://tenor.com/view/najman-marcin-marcin-najman-blue-el-testosteron-gif-19763961';
             interaction.channel.send({
                 content: `${lateMentions} spóźnion!`,
                 embeds: [
