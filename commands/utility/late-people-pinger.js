@@ -79,7 +79,7 @@ module.exports = {
 
             // Ping late users
             const lateMentions = lateUsers.map(userId => `<@${userId}>`).join(' ');
-            const gifUrl = 'https://tenor.com/view/najman-marcin-marcin-najman-blue-el-testosteron-gif-19763961';
+            const gifUrl = 'https://media1.tenor.com/m/m6iiQt-F0OoAAAAd/najman-marcin.gif';
             interaction.channel.send({
                 content: `${lateMentions} spóźnion!`,
                 embeds: [
