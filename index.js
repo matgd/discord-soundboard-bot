@@ -5,6 +5,17 @@ const { token } = require("./config.json");
 const { basenameToId } = require("./utils");
 const { ActivityType } = require("discord.js");
 
+// Create dataStore/saved-data.json if it doesn't exist
+const dataStorePath = path.join(__dirname, "dataStore");
+if (!fs.existsSync(dataStorePath)) {
+    fs.mkdirSync(dataStorePath);
+}
+const savedDataPath = path.join(dataStorePath, "saved-data.json");
+if (!fs.existsSync(savedDataPath)) {
+    fs.writeFileSync(savedDataPath, JSON.stringify({}));
+}
+
+
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates],
 });
