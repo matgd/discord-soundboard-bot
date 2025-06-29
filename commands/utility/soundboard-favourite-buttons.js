@@ -16,7 +16,7 @@ const DATA_PATH = path.join(__dirname, "../../dataStore/saved-data.json");
 module.exports = {
     cooldown: 5,
     data: new SlashCommandBuilder()
-        .setName("fav-buttons")
+        .setName("favs")
         .setDescription("Pokaż przyciski do odtwarzania ulubionych dźwięków.")
         .addIntegerOption((option) =>
             option.setName("page").setDescription("Strona ulubionych dźwięków."),
