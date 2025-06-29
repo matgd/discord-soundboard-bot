@@ -36,3 +36,6 @@ npm test
 
 ## Config json
 `config.json.dev` stores real app
+
+## dataStore
+`dataStore/saved-data.json` is an empty object

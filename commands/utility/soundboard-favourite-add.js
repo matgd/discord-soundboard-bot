@@ -16,6 +16,12 @@ module.exports = {
                 .setDescription("Nazwa identyfikatora dźwięku.")
                 .setRequired(true)
                 .setAutocomplete(true),
+        )
+        .addIntegerOption((option) =>
+            option
+                .setName("index")
+                .setDescription("Pozycja na liście ulubionych (1 = początek, domyślnie na końcu)")
+                .setRequired(false),
         ),
     async autocomplete(interaction) {
         const focusedValue = interaction.options.getFocused();
@@ -32,7 +38,7 @@ module.exports = {
     async execute(interaction) {
         const userId = interaction.user.id;
         const soundId = interaction.options.getString("identifier");
-
+        const indexOption = interaction.options.getInteger("index");
         let savedData = {};
         try {
             savedData = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
@@ -43,13 +49,17 @@ module.exports = {
         if (!Array.isArray(savedData[userId]["soundboard-favourites"])) {
             savedData[userId]["soundboard-favourites"] = [];
         }
-
-        if (!savedData[userId]["soundboard-favourites"].includes(soundId)) {
-            savedData[userId]["soundboard-favourites"].push(soundId);
-            fs.writeFileSync(DATA_PATH, JSON.stringify(savedData, null, 2));
-            await interaction.reply({ content: `Dodano **${soundId}** do ulubionych!`, ephemeral: true });
-        } else {
+        const favourites = savedData[userId]["soundboard-favourites"];
+        if (favourites.includes(soundId)) {
             await interaction.reply({ content: `**${soundId}** jest już w ulubionych.`, ephemeral: true });
+            return;
         }
+        let insertIndex = favourites.length;
+        if (indexOption && Number.isInteger(indexOption) && indexOption > 0) {
+            insertIndex = Math.min(indexOption - 1, favourites.length);
+        }
+        favourites.splice(insertIndex, 0, soundId);
+        fs.writeFileSync(DATA_PATH, JSON.stringify(savedData, null, 2));
+        await interaction.reply({ content: `Dodano **${soundId}** do ulubionych na pozycji ${insertIndex + 1}!`, ephemeral: true });
     },
 };
