@@ -33,3 +33,6 @@ sudo apt install make libtool autoconf automake g++
 ```
 npm test
 ```
+
+## Config json
+`config.json.dev` stores real app
