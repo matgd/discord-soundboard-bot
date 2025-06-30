@@ -1,5 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 
+const LATE_GIF = "./images/najman_spoznion.gif"; // Path to the GIF file
+
 module.exports = {
     cooldown: 5, // Optional: Set a cooldown for the command
     data: new SlashCommandBuilder()
@@ -82,11 +84,7 @@ module.exports = {
             const gifUrl = 'https://media1.tenor.com/m/m6iiQt-F0OoAAAAd/najman-marcin.gif';
             interaction.channel.send({
                 content: `${lateMentions} spóźnion!`,
-                embeds: [
-                    {
-                        image: { url: gifUrl }, // Add the GIF to an embed
-                    },
-                ],
+                files: [LATE_GIF], // Attach the GIF file
             });
         }, delay); // delay is 0 for "teraz"
     },
