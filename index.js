@@ -111,5 +111,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    // Auto-disconnect from voice channel if the last member leaves
+        // Only check when someone leaves a voice channel
+    if (oldState.channelId && oldState.channelId !== newState.channelId) {
+        const channel = oldState.channel;
+        if (!channel) return;
+
+        // Check if the bot is in this channel
+        const botMember = channel.members.get(client.user.id);
+        if (!botMember) return;
+
+        // Count non-bot members left in the channel
+        const nonBotMembers = channel.members.filter(member => !member.user.bot);
+        if (nonBotMembers.size === 0) {
+            // Disconnect the bot using @discordjs/voice
+            try {
+                const { getVoiceConnection } = require('@discordjs/voice');
+                const connection = getVoiceConnection(channel.guild.id);
+                if (connection) connection.destroy();
+            } catch (err) {
+                console.error("Failed to disconnect voice connection:", err);
+            }
+        }
+    }
+});
+
+
 // Log in to Discord with your client's token
 client.login(token);
