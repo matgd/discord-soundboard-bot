@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require("discord.js");
 const { token } = require("./config.json");
-const { basenameToId } = require("./utils");
+const { basenameToId, disconnectBotFromVoiceChannel, humanCountInVoiceChannel } = require("./utils");
 const { ActivityType } = require("discord.js");
 
 // Create dataStore/saved-data.json if it doesn't exist
@@ -111,9 +111,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
+// Auto-disconnect from voice channel if the last member leaves
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-    // Auto-disconnect from voice channel if the last member leaves
-        // Only check when someone leaves a voice channel
     if (oldState.channelId && oldState.channelId !== newState.channelId) {
         const channel = oldState.channel;
         if (!channel) return;
@@ -122,17 +121,8 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         const botMember = channel.members.get(client.user.id);
         if (!botMember) return;
 
-        // Count non-bot members left in the channel
-        const nonBotMembers = channel.members.filter(member => !member.user.bot);
-        if (nonBotMembers.size === 0) {
-            // Disconnect the bot using @discordjs/voice
-            try {
-                const { getVoiceConnection } = require('@discordjs/voice');
-                const connection = getVoiceConnection(channel.guild.id);
-                if (connection) connection.destroy();
-            } catch (err) {
-                console.error("Failed to disconnect voice connection:", err);
-            }
+        if (humanCountInVoiceChannel(channel) === 0) {
+            disconnectBotFromVoiceChannel(channel);
         }
     }
 });
