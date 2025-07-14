@@ -1,5 +1,7 @@
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, Collection } = require("discord.js");
 const { createAudioPlayer, createAudioResource, getVoiceConnection } = require("@discordjs/voice");
+const fs = require("node:fs");
+const path = require("node:path");
 
 /**
  * Replaces Polish diacritic characters in a string with their ASCII equivalents.
@@ -105,9 +107,73 @@ function humanCountInVoiceChannel(channel) {
     return channel.members.filter(member => !member.user.bot).size;
 }
 
+/**
+ * Ensures that the dataStore directory and saved-data.json file exist.
+ * Creates them if they do not exist.
+ */
+function ensureDataStoreExists() {
+    const dataStorePath = path.join(__dirname, "dataStore");
+    if (!fs.existsSync(dataStorePath)) {
+        fs.mkdirSync(dataStorePath);
+    }
+    const savedDataPath = path.join(dataStorePath, "saved-data.json");
+    if (!fs.existsSync(savedDataPath)) {
+        fs.writeFileSync(savedDataPath, JSON.stringify({}));
+    }
+}
+
+/**
+ * Loads command modules from the commands directory and returns a Collection of commands.
+ * @returns {import('discord.js').Collection<string, any>} The Collection of loaded commands.
+ */
+function loadCommands() {
+    const path = require("node:path");
+    const fs = require("node:fs");
+    const { Collection } = require("discord.js");
+    const commands = new Collection();
+    const foldersPath = path.join(__dirname, "commands");
+    const commandFolders = fs.readdirSync(foldersPath);
+    for (const folder of commandFolders) {
+        const commandsPath = path.join(foldersPath, folder);
+        const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+            const command = require(filePath);
+            if ("data" in command && "execute" in command) {
+                commands.set(command.data.name, command);
+            } else {
+                console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            }
+        }
+    }
+    return commands;
+}
+
+/**
+ * Loads sound files from the sounds directory and returns a Collection and sorted array of sound IDs.
+ * @returns {{ sounds: import('discord.js').Collection<string, string>, soundsIds: string[] }}
+ */
+function loadSoundIds() {
+    const sounds = new Collection();
+    const soundsIds = [];
+    const soundsPath = path.join(__dirname, "sounds");
+    const soundFiles = fs.readdirSync(soundsPath).filter((file) => file.endsWith(".mp3"));
+    for (const file of soundFiles) {
+        const filePath = path.join(soundsPath, file);
+        const soundId = basenameToId(path.basename(filePath, ".mp3"));
+        sounds.set(soundId, filePath);
+        soundsIds.push(soundId);
+    }
+    soundsIds.sort();
+    return { sounds, soundsIds };
+}
+
 module.exports = {
     basenameToId,
     playSoundAndReply,
     disconnectBotFromVoiceChannel,
     humanCountInVoiceChannel,
+    ensureDataStoreExists,
+    loadCommands,
+    loadSoundIds,
 };

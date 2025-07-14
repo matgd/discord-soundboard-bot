@@ -2,58 +2,22 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require("discord.js");
 const { token } = require("./config.json");
-const { basenameToId, disconnectBotFromVoiceChannel, humanCountInVoiceChannel } = require("./utils");
+const { basenameToId, disconnectBotFromVoiceChannel, humanCountInVoiceChannel, ensureDataStoreExists, loadCommands, loadSoundIds } = require("./utils");
 const { ActivityType } = require("discord.js");
 
-// Create dataStore/saved-data.json if it doesn't exist
-const dataStorePath = path.join(__dirname, "dataStore");
-if (!fs.existsSync(dataStorePath)) {
-    fs.mkdirSync(dataStorePath);
-}
-const savedDataPath = path.join(dataStorePath, "saved-data.json");
-if (!fs.existsSync(savedDataPath)) {
-    fs.writeFileSync(savedDataPath, JSON.stringify({}));
-}
-
+ensureDataStoreExists();
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates],
 });
 
-client.commands = new Collection();
-client.sounds = new Collection();
-client.soundsIds = [];
+client.commands = loadCommands();
 
-const foldersPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(foldersPath);
+const { sounds, soundsIds } = loadSoundIds();
+client.sounds = sounds;
+client.soundsIds = soundsIds;
 
-for (const folder of commandFolders) {
-    const commandsPath = path.join(foldersPath, folder);
-    const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        const command = require(filePath);
-        // Set a new item in the Collection with the key as the command name and the value as the exported module
-        if ("data" in command && "execute" in command) {
-            client.commands.set(command.data.name, command);
-        } else {
-            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-        }
-    }
-}
-
-const soundsPath = path.join(__dirname, "sounds");
-const soundFiles = fs.readdirSync(soundsPath).filter((file) => file.endsWith(".mp3"));
-for (const file of soundFiles) {
-    const filePath = path.join(soundsPath, file);
-    const soundId = basenameToId(path.basename(filePath, ".mp3"));
-    client.sounds.set(soundId, filePath);
-    client.soundsIds.push(soundId);
-}
-
-// Too lazy for Insert Sort
-client.soundsIds.sort();
-
+console.log(`Start timestamp: ${new Date().toLocaleString("pl-PL", { timeZone: "Europe/Warsaw" })}`);
 console.log(`Loaded ${client.commands.size} commands.`);
 console.log(`Loaded ${client.sounds.size} sounds.`);
 
