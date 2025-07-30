@@ -29,7 +29,14 @@ module.exports = {
 
         const buttons = [];
         const showableSoounds = interaction.client.soundsIds.slice((page - 1) * MAX_BUTTONS, page * MAX_BUTTONS);
-        if (!showableSoounds.length) {
+        // Log duplicates in showableSoounds
+        const duplicates = showableSoounds.filter((item, idx, arr) => arr.indexOf(item) !== idx);
+        if (duplicates.length) {
+            console.log(`Duplicate sound IDs on page ${page}:`, duplicates);
+        }
+        // Ensure unique sound IDs for buttons
+        const uniqueShowableSounds = [...new Set(showableSoounds)];
+        if (!uniqueShowableSounds.length) {
             await interaction.reply({
                 content: `No sounds on page ${page}. Total pages: ${maxPage}`,
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
@@ -37,7 +44,7 @@ module.exports = {
             return;
         }
 
-        showableSoounds.forEach((soundNameId) => {
+        uniqueShowableSounds.forEach((soundNameId) => {
             buttons.push(
                 new ButtonBuilder().setCustomId(soundNameId).setLabel(soundNameId).setStyle(ButtonStyle.Secondary),
             );
