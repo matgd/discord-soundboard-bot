@@ -34,7 +34,7 @@ module.exports = {
         if (duplicates.length) {
             console.log(`Duplicate sound IDs on page ${page}:`, duplicates);
         }
-        // Ensure unique sound IDs for buttons
+        // Ensure unique sound IDs for buttons otherwise it might return an error
         const uniqueShowableSounds = [...new Set(showableSoounds)];
         if (!uniqueShowableSounds.length) {
             await interaction.reply({
