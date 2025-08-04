@@ -72,4 +72,23 @@ describe('getAutocompleteChoices function', () => {
             { name: 'abcdefghi', value: 'abcdefghi' }
         ]);
     });
+
+    test('matches multiple words in any order', () => {
+        const input = 'def jkl';
+        const choices = [
+            'abc) def ghi jkl',
+            'abc) def qwe jkl',
+            'abc) def qwe xyz',
+            'abc) jkl def',
+            'abc) jkl',
+            'def jkl',
+        ];
+        const result = getAutocompleteChoices(input, choices);
+        expect(result).toEqual([
+            { name: 'abc) def ghi jkl', value: 'abc) def ghi jkl' },
+            { name: 'abc) def qwe jkl', value: 'abc) def qwe jkl' },
+            { name: 'abc) jkl def', value: 'abc) jkl def' },
+            { name: 'def jkl', value: 'def jkl' },
+        ]);
+    });
 });

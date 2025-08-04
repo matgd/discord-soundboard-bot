@@ -12,13 +12,27 @@ const AUTOCOMPLETE_CHOICE_LIMIT = 25; // Limit to 25 choices as per docs
  * @returns {{name: string, value: string}[]} An array of choice objects for Discord autocomplete.
  */
 function getAutocompleteChoices(input, choices, limit = AUTOCOMPLETE_CHOICE_LIMIT) {
-    return choices
-        .filter((choice) => choice.includes(input))
-        .slice(0, limit)
-        .map((choice) => ({
-            name: choice,
-            value: choice,
-        }));
+    const words = input.trim().split(/\s+/).filter(Boolean);
+    let filteredChoices = choices;
+
+    for (const word of words) {
+        filteredChoices = filteredChoices
+            .filter((choice) => choice.includes(word))
+            .slice(0, limit);
+        if (filteredChoices.length === 0) {
+            return [];
+        }
+    }
+
+    // Usually when there is no word
+    if (filteredChoices.length > limit) {
+        filteredChoices = filteredChoices.slice(0, limit);
+    }
+
+    return filteredChoices.map((choice) => ({
+        name: choice,
+        value: choice,
+    }));
 }
 
 module.exports = {

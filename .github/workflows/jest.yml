@@ -25,6 +25,8 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
+      # Coverage takes time and I don't care about it right now
+
       # - name: Run Jest tests with coverage
       #   run: npm test -- --coverage
 
