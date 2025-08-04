@@ -16,6 +16,7 @@ Set guildId to server you want deploy commands to
   
 - `node .` start bot
 - `node deploy-commands.js` - update commands
+- `npm test` - run tests
 
   
 ./sounds/*.mp3
