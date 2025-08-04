@@ -2,13 +2,13 @@ name: Run Jest Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   test:
-    environment: main
+    environment: master
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
