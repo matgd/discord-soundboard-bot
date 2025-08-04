@@ -61,4 +61,15 @@ describe('getAutocompleteChoices function', () => {
             { name: 'ABC', value: 'ABC' }
         ]);
     });
+
+    test('handles includes rule', () => {
+        const input = 'def';
+        const choices = ['abc', 'def', 'abcdef', 'abcdefghi', 'abcdegfhi'];
+        const result = getAutocompleteChoices(input, choices);
+        expect(result).toEqual([
+            { name: 'def', value: 'def' },
+            { name: 'abcdef', value: 'abcdef' },
+            { name: 'abcdefghi', value: 'abcdefghi' }
+        ]);
+    });
 });

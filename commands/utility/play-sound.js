@@ -13,7 +13,7 @@ const AUTOCOMPLETE_CHOICE_LIMIT = 25; // Limit to 25 choices as per docs
  */
 function getAutocompleteChoices(input, choices, limit = AUTOCOMPLETE_CHOICE_LIMIT) {
     return choices
-        .filter((choice) => choice.startsWith(input))
+        .filter((choice) => choice.includes(input))
         .slice(0, limit)
         .map((choice) => ({
             name: choice,
