@@ -1,8 +1,4 @@
-const { describe, test, expect } = require('@jest/globals');
-const playSound = require('../../../commands/utility/play-sound');
-
-// Use the exported getAutocompleteChoices function
-const { getAutocompleteChoices } = playSound;
+const { getAutocompleteChoices } = require('../../../commands/utility/play-sound');
 
 describe('getAutocompleteChoices function', () => {
     test('returns empty array when no choices match the input', () => {
