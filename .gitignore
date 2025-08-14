@@ -134,3 +134,4 @@ config.json
 config.json.dev
 sounds/
 dataStore/saved-data.json
+__pycache__/
