@@ -1,7 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { en, pl } = require('../localization/strings');
 
 const LATE_GIF = "./images/najman_spoznion.gif"; // Path to the GIF file
-
+const CMD_NAME = 'najman';
 
 /**
  * Returns a message indicating the tactical najman is set for a channel and time.
@@ -66,8 +67,11 @@ function convertProvidedTime(time) {
 module.exports = {
     cooldown: 5, // Optional: Set a cooldown for the command
     data: new SlashCommandBuilder()
-        .setName('najman') // Command name
-        .setDescription('Jesteśmy umówieni...') // Command description
+        .setName(CMD_NAME) // Command name
+        .setDescription(en.WE_ARE_SCHEDULED) // Command description
+        .setDescriptionLocalizations({
+            pl: pl.WE_ARE_SCHEDULED
+        })
         .addStringOption(option =>
             option.setName('godzina')
                 .setDescription('Godzina dzisiaj w formacie HH:MM lub "teraz"')
