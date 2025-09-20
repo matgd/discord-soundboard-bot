@@ -106,6 +106,9 @@ module.exports = {
         if (timeResult.errorMsg) {
             return interaction.reply(timeResult.errorMsg);
         }
+        if (timeResult.delay === null) {
+            throw new Error('Delay value is null after time conversion.');
+        }
 
         // Acknowledge the command and set a timeout
         await interaction.reply(getTimeSetMessage(channel.name, time));
@@ -131,7 +134,7 @@ module.exports = {
                 content: `${lateMentions} spóźnion!`,
                 files: [LATE_GIF], // Attach the GIF file
             });
-        }, delay); // delay is 0 for "teraz"
+        }, timeResult.delay);
     },
     // Export functions for testing
     getTimeSetMessage,
