@@ -1,8 +1,8 @@
 const { SlashCommandBuilder } = require("discord.js");
+const { defaultAutocomplete } = require("../../utils/autocomplete");
 const fs = require("fs");
 const path = require("path");
 
-const AUTOCOMPLETE_CHOICE_LIMIT = 25;
 const DATA_PATH = path.join(__dirname, "../../dataStore/saved-data.json");
 
 module.exports = {
@@ -24,16 +24,7 @@ module.exports = {
                 .setRequired(false),
         ),
     async autocomplete(interaction) {
-        const focusedValue = interaction.options.getFocused();
-        const choices = interaction.client.soundsIds;
-        let filtered = choices.filter((choice) => choice.startsWith(focusedValue));
-        filtered = filtered.slice(0, AUTOCOMPLETE_CHOICE_LIMIT);
-        await interaction.respond(
-            filtered.map((choice) => ({
-                name: choice,
-                value: choice,
-            })),
-        );
+        await defaultAutocomplete(interaction);
     },
     async execute(interaction) {
         const userId = interaction.user.id;
