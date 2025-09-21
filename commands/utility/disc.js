@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { getVoiceConnection } = require("@discordjs/voice");
-const { en, pl } = require("../localization/strings");
+const { en, pl } = require("../../localization/strings");
 
 const CMD_NAME = "disc";
 

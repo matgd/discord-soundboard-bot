@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { en, pl } = require('../localization/strings');
+const { en, pl } = require("../../localization/strings");
 
 const LATE_GIF = "./images/najman_spoznion.gif"; // Path to the GIF file
 const CMD_NAME = 'najman';

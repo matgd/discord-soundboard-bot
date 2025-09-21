@@ -1,5 +1,5 @@
 const { it, expect } = require('@jest/globals');
-const { en, pl, interpolate } = require('../../../commands/localization/strings');
+const { en, pl, interpolate } = require('../../localization/strings');
 
 describe('strings', () => {
   it('should have the same keys', () => {

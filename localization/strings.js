@@ -23,6 +23,10 @@ module.exports = {
     I_AM_ALREADY_CONNECTING_TO_A_VOICE_CHANNEL: "I am already connecting to a voice channel!",
     JOINED_TO_THE_VOICE_CHANNEL_XYZ:  "Joined to the voice channel: {channel}",
     WE_ARE_SCHEDULED: "We are scheduled...",
+    PLAY_RANDOM_SOUND: "Play random sound.",
+    PLAY_ONE_OF_AVAILABLE_SOUNDS: "Play one of available sounds.",
+    IDENTIFIER: "identifier",
+    IDENTIFIER_DESCRIPTION: "Name identifier of sound.",
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
@@ -34,6 +38,10 @@ module.exports = {
     I_AM_ALREADY_CONNECTING_TO_A_VOICE_CHANNEL: "Aktualnie łączę się z kanałem głosowym!",
     JOINED_TO_THE_VOICE_CHANNEL_XYZ: "Dołączyłem do kanału głosowego: {channel}",
     WE_ARE_SCHEDULED: "Jesteśmy umówieni...",
+    PLAY_RANDOM_SOUND: "Odtwórz losowo jeden z dostępnych dźwięków.",
+    PLAY_ONE_OF_AVAILABLE_SOUNDS: "Odtwórz jeden z dostępnych dźwięków.",
+    IDENTIFIER: "identyfikator",
+    IDENTIFIER_DESCRIPTION: "Nazwa identyfikująca dźwięk.",
   },
   interpolate,
 }

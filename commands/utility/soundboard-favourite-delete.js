@@ -66,9 +66,9 @@ module.exports = {
                 favourites.splice(idx, 1);
                 savedData[userId]["soundboard-favourites"] = favourites;
                 fs.writeFileSync(DATA_PATH, JSON.stringify(savedData, null, 2));
-                await buttonInteraction.reply({ content: `Usunięto **${toDelete}** z ulubionych.`, ephemeral: true });
+                await buttonInteraction.reply({ content: `Usunięto **${toDelete}** z ulubionych.`, flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications] });
             } else {
-                await buttonInteraction.reply({ content: `Nie znaleziono dźwięku **${toDelete}** w ulubionych.`, ephemeral: true });
+                await buttonInteraction.reply({ content: `Nie znaleziono dźwięku **${toDelete}** w ulubionych.`, flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications] });
             }
         });
     },
