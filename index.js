@@ -1,8 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require("discord.js");
+const { Client, Events, GatewayIntentBits, MessageFlags } = require("discord.js");
 const { token } = require("./config.json");
-const { basenameToId, disconnectBotFromVoiceChannel, humanCountInVoiceChannel, ensureDataStoreExists, loadCommands, loadSoundIds } = require("./utils");
+const { disconnectBotFromVoiceChannel, humanCountInVoiceChannel, ensureDataStoreExists, loadCommands, loadSoundIds } = require("./utils");
 const { ActivityType } = require("discord.js");
 
 ensureDataStoreExists();
