@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { defaultAutocomplete } = require("../../utils/autocomplete");
+const { defaultSoundIdAutocomplete } = require("../../utils/autocomplete");
 const fs = require("fs");
 const path = require("path");
 
@@ -24,7 +24,7 @@ module.exports = {
                 .setRequired(false),
         ),
     async autocomplete(interaction) {
-        await defaultAutocomplete(interaction);
+        await defaultSoundIdAutocomplete(interaction);
     },
     async execute(interaction) {
         const userId = interaction.user.id;

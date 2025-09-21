@@ -31,7 +31,7 @@ function getChoiceByIncludedSubstring(input, choices, limit = AUTOCOMPLETE_CHOIC
     }));
 }
 
-async function defaultAutocomplete(interaction) {
+async function defaultSoundIdAutocomplete(interaction) {
     const focusedValue = interaction.options.getFocused();
     const choices = interaction.client.soundsIds;
     await interaction.respond(
@@ -39,4 +39,4 @@ async function defaultAutocomplete(interaction) {
     );
 }
 
-module.exports = { getChoiceByIncludedSubstring, defaultAutocomplete };
+module.exports = { getChoiceByIncludedSubstring, defaultSoundIdAutocomplete };

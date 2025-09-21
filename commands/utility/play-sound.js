@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { playSoundAndReply } = require("../../utils");
-const { defaultAutocomplete } = require("../../utils/autocomplete");
+const { defaultSoundIdAutocomplete } = require("../../utils/autocomplete");
 const { en, pl } = require("../../localization/strings");
 
 const CMD_NAME = "play";
@@ -27,7 +27,7 @@ module.exports = {
                 .setAutocomplete(true),
         ),
     async autocomplete(interaction) {
-        await defaultAutocomplete(interaction);
+        await defaultSoundIdAutocomplete(interaction);
     },
     async execute(interaction) {
         let soundNameId = interaction.options.getString(en.IDENTIFIER) ?? "No identifier provided.";
