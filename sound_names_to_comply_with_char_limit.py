@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 CHAR_LIMIT = 80
-SOUND_DIR = Path("t_sounds")
+SOUND_DIR = Path("sounds")
 
 def get_mp3_files(directory: Path) -> list[Path]:
     """Get a list of .mp3 files in the specified directory."""
