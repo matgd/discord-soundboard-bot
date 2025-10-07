@@ -27,6 +27,9 @@ module.exports = {
     PLAY_ONE_OF_AVAILABLE_SOUNDS: "Play one of available sounds.",
     IDENTIFIER: "identifier",
     IDENTIFIER_DESCRIPTION: "Name identifier of sound.",
+    REFRESH_SOUND_IDS: "Refresh sound IDs.",
+    SOUND_IDS_REFRESHED_LOADED_N_SOUNDS: "Sound IDs refreshed, loaded {n} sounds.",
+    FAILED_TO_REFRESH_SOUND_IDS: "Failed to refresh sound IDs.",
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
@@ -42,6 +45,9 @@ module.exports = {
     PLAY_ONE_OF_AVAILABLE_SOUNDS: "Odtwórz jeden z dostępnych dźwięków.",
     IDENTIFIER: "identyfikator",
     IDENTIFIER_DESCRIPTION: "Nazwa identyfikująca dźwięk.",
+    REFRESH_SOUND_IDS: "Odśwież identyfikatory dźwięków.",
+    SOUND_IDS_REFRESHED_LOADED_N_SOUNDS: "Identyfikatory dźwięków odświeżone, załadowano {n} dźwięków.",
+    FAILED_TO_REFRESH_SOUND_IDS: "Nie udało się odświeżyć identyfikatorów dźwięków.",
   },
   interpolate,
 }
