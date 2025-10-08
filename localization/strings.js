@@ -30,6 +30,11 @@ module.exports = {
     REFRESH_SOUND_IDS: "Refresh sound IDs.",
     SOUND_IDS_REFRESHED_LOADED_N_SOUNDS: "Sound IDs refreshed, loaded {n} sounds.",
     FAILED_TO_REFRESH_SOUND_IDS: "Failed to refresh sound IDs.",
+    GET_SOUNDBOARD_FILTERED_BY_MATCHING_TEXT: "Get soundboard filtered by matching text.",
+    QUERY: "query",
+    QUERY_DESCRIPTION: "Search query for soundboard.",
+    NO_SOUNDS_MATCHING_YOUR_QUERY: "No sounds found matching your query.",
+    SHOWING_N_OF_FOUND_SOUNDS_FOR_QUERY: "Showing **{n}/{found}** sounds for query **{query}**.",
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
@@ -48,6 +53,11 @@ module.exports = {
     REFRESH_SOUND_IDS: "Odśwież identyfikatory dźwięków.",
     SOUND_IDS_REFRESHED_LOADED_N_SOUNDS: "Identyfikatory dźwięków odświeżone, załadowano {n} dźwięków.",
     FAILED_TO_REFRESH_SOUND_IDS: "Nie udało się odświeżyć identyfikatorów dźwięków.",
+    GET_SOUNDBOARD_FILTERED_BY_MATCHING_TEXT: "Wczytaj soundboard filtrowany według pasującego tekstu.",
+    QUERY: "zapytanie",
+    QUERY_DESCRIPTION: "Zapytanie wyszukiwania dla soundboardu.",
+    NO_SOUNDS_MATCHING_YOUR_QUERY: "Nie znaleziono dźwięków pasujących do Twojego zapytania.",
+    SHOWING_N_OF_FOUND_SOUNDS_FOR_QUERY: "Pokazano **{n}/{found}** dźwięków dla zapytania **{query}**.",
   },
   interpolate,
 }

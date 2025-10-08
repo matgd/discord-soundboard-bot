@@ -5,35 +5,42 @@ const {
 } = require("discord.js");
 const { playSoundAndReply } = require("../../utils");
 const { getSoundboard, MAX_BUTTONS } = require("../../utils/soundboard");
+const { pl, en, interpolate } = require("../../localization/strings");
+
+CMD_NAME = "soundboard-search"
 
 module.exports = {
     cooldown: 5,
     data: new SlashCommandBuilder()
-        .setName("soundboard")
-        .setDescription("Show buttons for playing available sounds.")
+        .setName(CMD_NAME)
+        .setDescription(en.GET_SOUNDBOARD_FILTERED_BY_MATCHING_TEXT)
         .setDescriptionLocalizations({
-            pl: "Pokaż przyciski do odtwarzania dostępnych dźwięków.",
+            pl: pl.GET_SOUNDBOARD_FILTERED_BY_MATCHING_TEXT,
         })
-        .addIntegerOption((option) =>
-            option.setName("page").setDescription("Page of soundboard.").setDescriptionLocalizations({
-                pl: "Nr strony z dżwiękami.",
-            }),
+        .addStringOption((option) =>
+            option.setName(en.QUERY).setDescription(en.QUERY_DESCRIPTION).setDescriptionLocalizations({
+                pl: pl.QUERY_DESCRIPTION,
+            })
+            .setRequired(true)
         ),
     async execute(interaction) {
-        const page = interaction.options.getInteger("page") ?? 1;
-        const maxPage = Math.ceil(interaction.client.soundsIds.length / MAX_BUTTONS);
+        let query = interaction.options.getString(en.QUERY) ?? "";
 
-        const soundboard = getSoundboard(interaction.client.soundsIds, page);
+        const filteredSoundIds = interaction.client.soundsIds.filter((soundId) =>
+            soundId.toLowerCase().includes(query.toLowerCase())
+        );
+        const soundboard = getSoundboard(filteredSoundIds, 1);
         if (!soundboard.length) {
             await interaction.reply({
-                content: `No sounds on page ${page}. Total pages: ${maxPage}`,
+                content: pl.NO_SOUNDS_MATCHING_YOUR_QUERY,
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
             });
             return;
         }
 
+        const showingN = filteredSoundIds.length > MAX_BUTTONS ? MAX_BUTTONS : filteredSoundIds.length;
         const buttonReply = await interaction.reply({
-            content: `Page: ${page}/${maxPage}`,
+            content: interpolate(pl.SHOWING_N_OF_FOUND_SOUNDS_FOR_QUERY, { n: showingN, found: filteredSoundIds.length, query }),
             components: soundboard,
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
