@@ -7,8 +7,7 @@ const {
     ComponentType,
 } = require("discord.js");
 const { playSoundAndReply } = require("../../utils");
-
-const MAX_BUTTONS = 25;
+const { getSoundboard, MAX_BUTTONS } = require("../../utils/soundboard");
 
 module.exports = {
     cooldown: 5,
@@ -27,16 +26,8 @@ module.exports = {
         const page = interaction.options.getInteger("page") ?? 1;
         const maxPage = Math.ceil(interaction.client.soundsIds.length / MAX_BUTTONS);
 
-        const buttons = [];
-        const showableSoounds = interaction.client.soundsIds.slice((page - 1) * MAX_BUTTONS, page * MAX_BUTTONS);
-        // Log duplicates in showableSoounds
-        const duplicates = showableSoounds.filter((item, idx, arr) => arr.indexOf(item) !== idx);
-        if (duplicates.length) {
-            console.log(`Duplicate sound IDs on page ${page}:`, duplicates);
-        }
-        // Ensure unique sound IDs for buttons otherwise it might return an error
-        const uniqueShowableSounds = [...new Set(showableSoounds)];
-        if (!uniqueShowableSounds.length) {
+        const soundboard = getSoundboard(interaction.client.soundsIds, page);
+        if (!soundboard.length) {
             await interaction.reply({
                 content: `No sounds on page ${page}. Total pages: ${maxPage}`,
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
@@ -44,20 +35,9 @@ module.exports = {
             return;
         }
 
-        uniqueShowableSounds.forEach((soundNameId) => {
-            buttons.push(
-                new ButtonBuilder().setCustomId(soundNameId).setLabel(soundNameId).setStyle(ButtonStyle.Secondary),
-            );
-        });
-
-        const rows = [];
-        while (buttons.length) {
-            rows.push(new ActionRowBuilder().addComponents(buttons.splice(0, 5)));
-        }
-
         const buttonReply = await interaction.reply({
             content: `Page: ${page}/${maxPage}`,
-            components: rows,
+            components: soundboard,
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
 

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { defaultSoundIdAutocomplete } = require("../../utils/autocomplete");
 const fs = require("fs");
 const path = require("path");
@@ -42,7 +42,7 @@ module.exports = {
         }
         const favourites = savedData[userId]["soundboard-favourites"];
         if (favourites.includes(soundId)) {
-            await interaction.reply({ content: `**${soundId}** jest już w ulubionych.`, ephemeral: true });
+            await interaction.reply({ content: `**${soundId}** jest już w ulubionych.`, flags: [MessageFlags.Ephemeral] });
             return;
         }
         let insertIndex = favourites.length;
@@ -51,6 +51,6 @@ module.exports = {
         }
         favourites.splice(insertIndex, 0, soundId);
         fs.writeFileSync(DATA_PATH, JSON.stringify(savedData, null, 2));
-        await interaction.reply({ content: `Dodano **${soundId}** do ulubionych na pozycji ${insertIndex + 1}!`, ephemeral: true });
+        await interaction.reply({ content: `Dodano **${soundId}** do ulubionych na pozycji ${insertIndex + 1}!`, flags: [MessageFlags.Ephemeral] });
     },
 };

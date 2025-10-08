@@ -1,7 +1,3 @@
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// KIND OF A TECH DEBT
-// MOVING THIS FILE WILL MESS UP THE RELATIVE PATHS LOGIC HERE
-
 const { MessageFlags, Collection } = require("discord.js");
 const { createAudioPlayer, createAudioResource, getVoiceConnection } = require("@discordjs/voice");
 const fs = require("node:fs");
@@ -135,7 +131,7 @@ function loadCommands() {
     const fs = require("node:fs");
     const { Collection } = require("discord.js");
     const commands = new Collection();
-    const foldersPath = path.join(__dirname, "commands");
+    const foldersPath = path.join("commands");
     const commandFolders = fs.readdirSync(foldersPath);
     for (const folder of commandFolders) {
         const commandsPath = path.join(foldersPath, folder);

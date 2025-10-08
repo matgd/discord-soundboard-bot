@@ -8,6 +8,7 @@ const {
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+const { getSoundboard } = require("../../utils/soundboard");
 
 const MAX_BUTTONS = 25;
 const DATA_PATH = path.join(__dirname, "../../dataStore/saved-data.json");
@@ -33,27 +34,18 @@ module.exports = {
             ? savedData[userId]["soundboard-favourites"]
             : [];
         const maxPage = Math.max(1, Math.ceil(favourites.length / MAX_BUTTONS));
-        const showableSounds = favourites.slice((page - 1) * MAX_BUTTONS, page * MAX_BUTTONS);
-        if (!showableSounds.length) {
+        const soundboard = getSoundboard(favourites, page, () => ButtonStyle.Danger);
+        if (!soundboard.length) {
             await interaction.reply({
                 content: `Brak ulubionych dźwięków na stronie ${page}. Liczba stron: ${maxPage}`,
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
             });
             return;
         }
-        const buttons = [];
-        showableSounds.forEach((soundNameId) => {
-            buttons.push(
-                new ButtonBuilder().setCustomId(soundNameId).setLabel(soundNameId).setStyle(ButtonStyle.Danger),
-            );
-        });
-        const rows = [];
-        while (buttons.length) {
-        rows.push(new ActionRowBuilder().addComponents(buttons.splice(0, 5)));
-        }
+
         const buttonReply = await interaction.reply({
             content: `**Usuń** ulubiony dźwięk - Strona: ${page}/${maxPage}`,
-            components: rows,
+            components: soundboard,
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
         const collector = buttonReply.createMessageComponentCollector({
