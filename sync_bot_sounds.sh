@@ -17,4 +17,4 @@ if [ $? -ne 0 ]; then
     exit 2
 fi
 
-rsync -chavzP --stats "$LOCAL_DIR" "$REMOTE_HOST:$REMOTE_DIR"
+rsync -chavzP --stats --delete "$LOCAL_DIR" "$REMOTE_HOST:$REMOTE_DIR"
