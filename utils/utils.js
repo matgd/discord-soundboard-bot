@@ -33,7 +33,7 @@ function replacePolishChars(str) {
  */
 function basenameToId(basename) {
     let modifiedBasename = replacePolishChars(basename);
-    modifiedBasename = modifiedBasename.replace(/[^a-zA-Z0-9]/g, " ");
+    modifiedBasename = modifiedBasename.replace(/[^a-zA-Z0-9\[\]\(\)]/g, " ");
     modifiedBasename = modifiedBasename.replace("  ", ") ");
     return modifiedBasename.toLowerCase();
 }
