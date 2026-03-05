@@ -17,8 +17,10 @@ if [ $? -ne 0 ]; then
     exit 2
 fi
 
-echo "[1/2] Removing peaks folder"
+echo "> Removing $LOCAL_DIR/peaks folder..." 
 rm -rv "$LOCAL_DIR/peaks"
+echo "< Done."
 
-echo "[2/2] Performing SSH rsync"
+echo "> Performing SSH rsync..."
 rsync -chavzP --stats --delete "$LOCAL_DIR" "$REMOTE_HOST:$REMOTE_DIR"
+echo "< Done."
