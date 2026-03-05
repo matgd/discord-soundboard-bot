@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } = require("@discordjs/voice");
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
 const { en, pl, interpolate } = require("../../localization/strings");
 
 const CMD_NAME = "join";
@@ -46,5 +46,20 @@ module.exports = {
             content: interpolate(pl.JOINED_TO_THE_VOICE_CHANNEL_XYZ, { channel: channel.name }),
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
+
+        // Play specific sound if it exists
+        const soundId = "pawelek) jestesmy na moim terenie i to ja tutaj rzadze";
+        const matchingPaths = interaction.client.soundsIds.filter((s) => s.startsWith(soundId));
+        const foundSoundId = matchingPaths[0];
+        if (foundSoundId) {
+            const soundPath = interaction.client.sounds.get(foundSoundId);
+            const connection = getVoiceConnection(channel.guild.id);
+            if (connection) {
+                const player = createAudioPlayer();
+                connection.subscribe(player);
+                const resource = createAudioResource(soundPath);
+                player.play(resource);
+            }
+        }
     },
 };
