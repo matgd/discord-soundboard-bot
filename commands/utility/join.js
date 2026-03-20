@@ -34,6 +34,8 @@ module.exports = {
             channelId: channel.id,
             guildId: channel.guild.id,
             adapterCreator: channel.guild.voiceAdapterCreator,
+            selfDeaf: true,
+            selfMute: false,
         });
 
         // Informujemy użytkownika, że bot próbuje wejść
