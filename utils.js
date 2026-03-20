@@ -3,7 +3,13 @@
 // MOVING THIS FILE WILL MESS UP THE RELATIVE PATHS LOGIC HERE
 
 const { MessageFlags, Collection } = require("discord.js");
-const { createAudioPlayer, createAudioResource, getVoiceConnection } = require("@discordjs/voice");
+const { 
+    createAudioPlayer, 
+    createAudioResource, 
+    getVoiceConnection ,
+    entersState, 
+    VoiceConnectionStatus,
+} = require("@discordjs/voice");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -51,41 +57,61 @@ function basenameToId(basename) {
  * @returns {Promise<void>}
  */
 async function playSoundAndReply(interaction, soundId, successMsg = "", deleteReplyTime = 3_000) {
-    // deleteReplyTime <= 0 means don't delete the reply
+    const connection = getVoiceConnection(interaction.guildId);
 
-    let connection = getVoiceConnection(interaction.guildId);
     if (!connection) {
-        await interaction.reply({
+        return interaction.reply({
             content: "I am not connected to a voice channel!",
-            flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
+            flags: [MessageFlags.Ephemeral],
         });
-        return;
     }
 
     const matchingPaths = interaction.client.soundsIds.filter((s) => s.startsWith(soundId));
     const foundSoundId = matchingPaths[0];
-    const successMessage = successMsg || `**Playing:** ${foundSoundId}`;
 
     if (!foundSoundId) {
-        await interaction.reply({
+        return interaction.reply({
             content: "*Sound not found.*",
+            flags: [MessageFlags.Ephemeral],
+        });
+    }
+
+    const soundPath = interaction.client.sounds.get(foundSoundId);
+    const successMessage = successMsg || `**Playing:** ${foundSoundId}`;
+
+    try {
+        // 1. Ensure the connection is actually ready before playing
+        await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+
+        // 2. Reuse or Create Player
+        // Note: For production, it's better to store 'player' in a Map per guild
+        const player = createAudioPlayer();
+        const resource = createAudioResource(soundPath);
+
+        // 3. Error Handling (Crucial for debugging)
+        player.on('error', error => {
+            console.error(`Error playing ${foundSoundId}:`, error.message);
+        });
+
+        connection.subscribe(player);
+        player.play(resource);
+
+        await interaction.reply({
+            content: successMessage,
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
-        return;
+
+        if (deleteReplyTime > 0) {
+            setTimeout(() => interaction.deleteReply().catch(() => {}), deleteReplyTime);
+        }
+
+    } catch (error) {
+        console.error("Voice Error:", error);
+        await interaction.reply({ 
+            content: "Failed to play audio. The connection might have timed out.", 
+            flags: [MessageFlags.Ephemeral] 
+        }).catch(() => {});
     }
-    const soundPath = interaction.client.sounds.get(foundSoundId);
-
-    const player = createAudioPlayer();
-    connection.subscribe(player);
-    const resource = createAudioResource(soundPath);
-    player.play(resource);
-
-    await interaction.reply({
-        content: successMessage,
-        flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-    });
-
-    if (deleteReplyTime > 0) setTimeout(() => interaction.deleteReply(), deleteReplyTime);
 }
 
 /**
