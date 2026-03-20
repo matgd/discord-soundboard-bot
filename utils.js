@@ -56,6 +56,16 @@ function basenameToId(basename) {
  * @param {string} [successMsg=""] - Optional success message to reply with.
  * @param {number} [deleteReplyTime=3000] - Time in ms to delete the reply after, or <=0 to not delete.
  * @returns {Promise<void>}
+ * 
+ * 
+ * 
+ * 
+ * STILL DOESN'T WORK 
+ * WHAT I'VE TRIED
+ * - npm installs of recommended libs
+ * - dietpi update
+ * - switching to WiFi
+ * - voice playing locally on WSL also doesn't work
  */
 async function playSoundAndReply(interaction, soundId, successMsg = "", deleteReplyTime = 3_000) {
     const connection = getVoiceConnection(interaction.guildId);
