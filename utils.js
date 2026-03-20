@@ -3,7 +3,14 @@
 // MOVING THIS FILE WILL MESS UP THE RELATIVE PATHS LOGIC HERE
 
 const { MessageFlags, Collection } = require("discord.js");
-const { createAudioPlayer, createAudioResource, getVoiceConnection } = require("@discordjs/voice");
+const { 
+    createAudioPlayer, 
+    createAudioResource, 
+    getVoiceConnection, 
+    AudioPlayerStatus, // Opcjonalnie: do monitorowania stanu odtwarzacza
+    VoiceConnectionStatus, // Potrzebne do sprawdzania stanu połączenia
+    entersState // KLUCZOWE: pozwala poczekać na gotowość połączenia
+} = require("@discordjs/voice");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -51,42 +58,68 @@ function basenameToId(basename) {
  * @returns {Promise<void>}
  */
 async function playSoundAndReply(interaction, soundId, successMsg = "", deleteReplyTime = 3_000) {
-    // deleteReplyTime <= 0 means don't delete the reply
+    const connection = getVoiceConnection(interaction.guildId);
 
-    let connection = getVoiceConnection(interaction.guildId);
     if (!connection) {
-        await interaction.reply({
+        return interaction.reply({
             content: "I am not connected to a voice channel!",
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
-        return;
     }
 
     const matchingPaths = interaction.client.soundsIds.filter((s) => s.startsWith(soundId));
     const foundSoundId = matchingPaths[0];
-    const successMessage = successMsg || `**Playing:** ${foundSoundId}`;
 
     if (!foundSoundId) {
-        await interaction.reply({
+        return interaction.reply({
             content: "*Sound not found.*",
             flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
         });
-        return;
     }
-    const soundPath = interaction.client.sounds.get(foundSoundId);
 
-    const player = createAudioPlayer();
-    connection.subscribe(player);
-    const resource = createAudioResource(soundPath);
-    player.play(resource);
+    try {
+        // 1. Upewnij się, że połączenie jest gotowe (czekaj max 5s)
+        await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
 
-    await interaction.reply({
-        content: successMessage,
-        flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-    });
+        const soundPath = interaction.client.sounds.get(foundSoundId);
+        const player = createAudioPlayer();
+        const resource = createAudioResource(soundPath);
 
-    if (deleteReplyTime > 0) setTimeout(() => interaction.deleteReply(), deleteReplyTime);
+        // 2. Obsługa błędów odtwarzacza
+        player.on('error', error => {
+            console.error(`Error: ${error.message} with resource ${error.resource.metadata}`);
+        });
+
+        // 3. Subskrypcja i odtworzenie
+        connection.subscribe(player);
+        player.play(resource);
+
+        const successMessage = successMsg || `**Playing:** ${foundSoundId}`;
+        await interaction.reply({
+            content: successMessage,
+            flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
+        });
+
+        // 4. Usuwanie odpowiedzi (opcjonalne)
+        if (deleteReplyTime > 0) {
+            setTimeout(async () => {
+                try {
+                    await interaction.deleteReply();
+                } catch (e) {
+                    // Ignoruj błąd, jeśli odpowiedź została już usunięta
+                }
+            }, deleteReplyTime);
+        }
+
+    } catch (error) {
+        console.error("Voice Error:", error);
+        await interaction.reply({
+            content: "Failed to play sound. Make sure I have permissions!",
+            flags: [MessageFlags.Ephemeral],
+        }).catch(() => {});
+    }
 }
+
 
 /**
  * Disconnects the bot from a voice channel in the specified channel's guild.
