@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } = require("@discordjs/voice");
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState } = require("@discordjs/voice");
 const { en, pl, interpolate } = require("../../localization/strings");
 
 const CMD_NAME = "join";
@@ -37,10 +37,22 @@ module.exports = {
                 });
             }
         }
-        joinVoiceChannel({
+        const newConnection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
             adapterCreator: channel.guild.voiceAdapterCreator,
+        });
+        newConnection.on(VoiceConnectionStatus.Disconnected, async () => {
+            try {
+                await Promise.race([
+                    entersState(newConnection, VoiceConnectionStatus.Signalling, 5_000),
+                    entersState(newConnection, VoiceConnectionStatus.Connecting, 5_000),
+                ]);
+                // Reconnecting to a new voice server
+            } catch (error) {
+                // Real disconnect — destroy the connection
+                newConnection.destroy();
+            }
         });
         await interaction.reply({
             content: interpolate(pl.JOINED_TO_THE_VOICE_CHANNEL_XYZ, { channel: channel.name }),
