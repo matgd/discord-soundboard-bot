@@ -78,8 +78,8 @@ async function playSoundAndReply(interaction, soundId, successMsg = "", deleteRe
     }
 
     try {
-        // 1. Upewnij się, że połączenie jest gotowe (czekaj max 5s)
-        await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+        console.log(`Voice connection state: ${connection.state.status}`);
+        await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
 
         const soundPath = interaction.client.sounds.get(foundSoundId);
         const player = createAudioPlayer();
@@ -112,7 +112,7 @@ async function playSoundAndReply(interaction, soundId, successMsg = "", deleteRe
         }
 
     } catch (error) {
-        console.error("Voice Error:", error);
+        console.error(`Voice Error (connection state: ${connection.state.status}):`, error);
         await interaction.reply({
             content: "Failed to play sound. Make sure I have permissions!",
             flags: [MessageFlags.Ephemeral],

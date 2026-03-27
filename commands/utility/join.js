@@ -54,9 +54,19 @@ module.exports = {
                 newConnection.destroy();
             }
         });
-        await interaction.reply({
-            content: interpolate(pl.JOINED_TO_THE_VOICE_CHANNEL_XYZ, { channel: channel.name }),
-            flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
-        });
+        try {
+            await entersState(newConnection, VoiceConnectionStatus.Ready, 15_000);
+            await interaction.reply({
+                content: interpolate(pl.JOINED_TO_THE_VOICE_CHANNEL_XYZ, { channel: channel.name }),
+                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
+            });
+        } catch (error) {
+            console.error("Failed to join voice channel — connection did not reach Ready state:", error);
+            newConnection.destroy();
+            await interaction.reply({
+                content: "Failed to connect to voice channel. Try again.",
+                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
+            });
+        }
     },
 };
