@@ -15,6 +15,7 @@ const { sounds, soundsIds } = loadSoundIds();
 client.sounds = sounds;
 client.soundsIds = soundsIds;
 
+console.log("node version:", process.version);
 console.log(`Start timestamp: ${new Date().toLocaleString("pl-PL", { timeZone: "Europe/Warsaw" })}`);
 console.log(`Loaded ${client.commands.size} commands.`);
 console.log(`Loaded ${client.sounds.size} sounds.`);
