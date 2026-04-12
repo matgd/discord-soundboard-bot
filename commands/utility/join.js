@@ -1,8 +1,25 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState } = require("@discordjs/voice");
+const { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
 const { en, pl, interpolate } = require("../../localization/strings");
 
 const CMD_NAME = "join";
+
+function playRandomPawelekSound(client, connection) {
+    const pawelekSounds = client.soundsIds.filter(id => id.startsWith("pawelek)"));
+    if (pawelekSounds.length === 0) return;
+
+    const randomSound = pawelekSounds[Math.floor(Math.random() * pawelekSounds.length)];
+    const soundPath = client.sounds.get(randomSound);
+    if (!soundPath) return;
+
+    const player = createAudioPlayer();
+    const resource = createAudioResource(soundPath);
+    player.on('error', error => {
+        console.error(`Error playing join sound: ${error.message}`);
+    });
+    connection.subscribe(player);
+    player.play(resource);
+}
 
 module.exports = {
     cooldown: 2,
@@ -56,6 +73,9 @@ module.exports = {
         });
         try {
             await entersState(newConnection, VoiceConnectionStatus.Ready, 15_000);
+
+            playRandomPawelekSound(interaction.client, newConnection);
+
             await interaction.reply({
                 content: interpolate(pl.JOINED_TO_THE_VOICE_CHANNEL_XYZ, { channel: channel.name }),
                 flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],

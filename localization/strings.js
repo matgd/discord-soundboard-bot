@@ -17,7 +17,7 @@ module.exports = {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Disconnects bot from the voice channel.",
     IM_NOT_CONNECTED_TO_A_VOICE_CHANNEL: "I'm not connected to a voice channel.",
     BYE: "Bye!",
-    MAKE_BOT_JOIN_TO_THE_VOICE_CHANNEL_YOU_ARE_IN: "Make_bot_join_to_the_voice_channel_you_are_in.",
+    MAKE_BOT_JOIN_TO_THE_VOICE_CHANNEL_YOU_ARE_IN: "Make bot join to the voice channel you are in.",
     YOU_NEED_TO_BE_IN_A_VOICE_CHANNEL_TO_USE_THIS_COMMAND: "You need to be in a voice channel to use this command!",
     I_AM_ALREADY_CONNECTED_TO_A_VOICE_CHANNEL: "I am already connected to a voice channel!",
     I_AM_ALREADY_CONNECTING_TO_A_VOICE_CHANNEL: "I am already connecting to a voice channel!",
