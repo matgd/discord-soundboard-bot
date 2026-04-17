@@ -2,8 +2,10 @@ const { Client, Events, GatewayIntentBits, MessageFlags } = require("discord.js"
 const { token } = require("./config.json");
 const { disconnectBotFromVoiceChannel, humanCountInVoiceChannel, ensureDataStoreExists, loadCommands, loadSoundIds } = require("./utils");
 const { ActivityType } = require("discord.js");
+const { ensureVoiceTimeFileExists, handleVoiceJoin, handleVoiceLeave, recoverActiveSessions } = require("./utils/voiceTime");
 
 ensureDataStoreExists();
+ensureVoiceTimeFileExists();
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates],
@@ -28,6 +30,7 @@ client.once(Events.ClientReady, (readyClient) => {
     client.user.setActivity("klientów klubu Eksplożyn", {
         type: ActivityType.Listening,
     });
+    recoverActiveSessions(readyClient);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -74,13 +77,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-// Auto-disconnect from voice channel if the last member leaves
+// Track voice time and auto-disconnect from voice channel if the last member leaves
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+    const userId = newState.id;
+    const guildId = newState.guild.id;
+    const isBot = newState.member?.user?.bot;
+
+    // Track voice time for non-bot users
+    if (!isBot) {
+        const leftChannel = oldState.channelId && oldState.channelId !== newState.channelId;
+        const joinedChannel = newState.channelId && oldState.channelId !== newState.channelId;
+
+        if (leftChannel) {
+            handleVoiceLeave(guildId, userId);
+        }
+        if (joinedChannel) {
+            handleVoiceJoin(guildId, userId, newState.channelId);
+        }
+    }
+
+    // Auto-disconnect bot when no humans remain
     if (oldState.channelId && oldState.channelId !== newState.channelId) {
         const channel = oldState.channel;
         if (!channel) return;
 
-        // Check if the bot is in this channel
         const botMember = channel.members.get(client.user.id);
         if (!botMember) return;
 

@@ -35,6 +35,10 @@ module.exports = {
     QUERY_DESCRIPTION: "Search query for soundboard.",
     NO_SOUNDS_MATCHING_YOUR_QUERY: "No sounds found matching your query.",
     SHOWING_N_OF_FOUND_SOUNDS_FOR_QUERY: "Showing **{n}/{found}** sounds for query **{query}**.",
+    VOICE_TIME_DESCRIPTION: "Show voice channel time leaderboard.",
+    VOICE_TIME_PERIOD_DESCRIPTION: "Time period to show (default: 7 days).",
+    VOICE_TIME_TITLE: "Voice time — last {days} days",
+    VOICE_TIME_NO_DATA: "No voice time data for this period.",
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
@@ -58,6 +62,10 @@ module.exports = {
     QUERY_DESCRIPTION: "Zapytanie wyszukiwania dla soundboardu.",
     NO_SOUNDS_MATCHING_YOUR_QUERY: "Nie znaleziono dźwięków pasujących do Twojego zapytania.",
     SHOWING_N_OF_FOUND_SOUNDS_FOR_QUERY: "Pokazano **{n}/{found}** dźwięków dla zapytania **{query}**.",
+    VOICE_TIME_DESCRIPTION: "Pokaż ranking czasu na kanałach głosowych.",
+    VOICE_TIME_PERIOD_DESCRIPTION: "Okres czasu do wyświetlenia (domyślnie: 7 dni).",
+    VOICE_TIME_TITLE: "Czas na voice — ostatnie {days} dni",
+    VOICE_TIME_NO_DATA: "Brak danych o czasie na voice w tym okresie.",
   },
   interpolate,
 }
