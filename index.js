@@ -109,3 +109,5 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         }
     }
 });
+
+client.login(token);
