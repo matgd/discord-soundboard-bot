@@ -2,7 +2,7 @@ const { Client, Events, GatewayIntentBits, MessageFlags } = require("discord.js"
 const { token } = require("./config.json");
 const { disconnectBotFromVoiceChannel, humanCountInVoiceChannel, ensureDataStoreExists, loadCommands, loadSoundIds } = require("./utils");
 const { ActivityType } = require("discord.js");
-const { ensureVoiceTimeFileExists, handleVoiceJoin, handleVoiceLeave, recoverActiveSessions } = require("./utils/voiceTime");
+const { ensureVoiceTimeFileExists, handleVoiceJoin, handleVoiceLeave, recoverActiveSessions, flushActiveSessions } = require("./utils/voiceTime");
 
 ensureDataStoreExists();
 ensureVoiceTimeFileExists();
@@ -111,3 +111,13 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 });
 
 client.login(token);
+
+// Graceful shutdown: flush active voice sessions so time is not lost
+function gracefulShutdown(signal) {
+    console.log(`Received ${signal}, flushing active voice sessions...`);
+    flushActiveSessions();
+    process.exit(0);
+}
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

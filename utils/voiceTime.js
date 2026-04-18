@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const DATA_PATH = path.join(__dirname, "../dataStore/voice-time.json");
+const ACTIVE_SESSIONS_PATH = path.join(__dirname, "../dataStore/active-sessions.json");
 
 // In-memory map of active voice sessions: Map<"guildId:userId", { channelId, joinedAt }>
 const activeSessions = new Map();
@@ -24,12 +25,30 @@ function ensureVoiceTimeFileExists() {
     }
 }
 
+function saveActiveSessions() {
+    const obj = {};
+    for (const [key, session] of activeSessions.entries()) {
+        obj[key] = { channelId: session.channelId, joinedAt: session.joinedAt };
+    }
+    obj._savedAt = Date.now();
+    fs.writeFileSync(ACTIVE_SESSIONS_PATH, JSON.stringify(obj, null, 2));
+}
+
+function loadSavedActiveSessions() {
+    try {
+        return JSON.parse(fs.readFileSync(ACTIVE_SESSIONS_PATH, "utf8"));
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Records a user joining a voice channel.
  */
 function handleVoiceJoin(guildId, userId, channelId) {
     const key = `${guildId}:${userId}`;
     activeSessions.set(key, { channelId, joinedAt: Date.now() });
+    saveActiveSessions();
 }
 
 /**
@@ -41,6 +60,7 @@ function handleVoiceLeave(guildId, userId) {
     if (!session) return;
 
     activeSessions.delete(key);
+    saveActiveSessions();
 
     const duration = Date.now() - session.joinedAt;
     // Ignore sessions shorter than 10 seconds (likely transient)
@@ -64,17 +84,65 @@ function handleVoiceLeave(guildId, userId) {
 
 /**
  * On bot startup, scan all voice channels and create sessions for users already connected.
+ * Restores original joinedAt from saved sessions when available.
  */
 function recoverActiveSessions(client) {
+    const saved = loadSavedActiveSessions();
+    const savedAt = saved?._savedAt || Date.now();
+
+    // Collect currently connected users
+    const currentUsers = new Set();
     for (const guild of client.guilds.cache.values()) {
         for (const channel of guild.channels.cache.values()) {
             if (!channel.isVoiceBased()) continue;
             for (const member of channel.members.values()) {
                 if (member.user.bot) continue;
-                handleVoiceJoin(guild.id, member.id, channel.id);
+                const key = `${guild.id}:${member.id}`;
+                currentUsers.add(key);
+
+                // Restore original joinedAt if we have a saved session
+                if (saved && saved[key]) {
+                    activeSessions.set(key, {
+                        channelId: channel.id,
+                        joinedAt: saved[key].joinedAt,
+                    });
+                } else {
+                    activeSessions.set(key, {
+                        channelId: channel.id,
+                        joinedAt: Date.now(),
+                    });
+                }
             }
         }
     }
+
+    // Finalize sessions for users who left while bot was down
+    if (saved) {
+        for (const [key, session] of Object.entries(saved)) {
+            if (key === "_savedAt") continue;
+            if (currentUsers.has(key)) continue;
+
+            // User was in voice before restart but is no longer — record up to savedAt
+            const duration = savedAt - session.joinedAt;
+            if (duration < 10_000) continue;
+
+            const [guildId, userId] = key.split(":");
+            const data = loadData();
+            data.push({
+                guildId,
+                userId,
+                channelId: session.channelId,
+                joinedAt: session.joinedAt,
+                duration,
+            });
+            const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+            const pruned = data.filter((e) => e.joinedAt >= cutoff);
+            saveData(pruned);
+        }
+    }
+
+    saveActiveSessions();
+
     const count = activeSessions.size;
     if (count > 0) {
         console.log(`Recovered ${count} active voice session(s) on startup.`);
@@ -132,6 +200,31 @@ function formatDuration(ms) {
     return `${minutes}m`;
 }
 
+/**
+ * Flushes all active sessions to completed data (for graceful shutdown).
+ */
+function flushActiveSessions() {
+    for (const [key, session] of activeSessions.entries()) {
+        const duration = Date.now() - session.joinedAt;
+        if (duration < 10_000) continue;
+
+        const [guildId, userId] = key.split(":");
+        const data = loadData();
+        data.push({
+            guildId,
+            userId,
+            channelId: session.channelId,
+            joinedAt: session.joinedAt,
+            duration,
+        });
+        const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+        const pruned = data.filter((e) => e.joinedAt >= cutoff);
+        saveData(pruned);
+    }
+    activeSessions.clear();
+    saveActiveSessions();
+}
+
 module.exports = {
     ensureVoiceTimeFileExists,
     handleVoiceJoin,
@@ -139,4 +232,5 @@ module.exports = {
     recoverActiveSessions,
     getVoiceTimeLeaderboard,
     formatDuration,
+    flushActiveSessions,
 };

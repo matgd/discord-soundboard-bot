@@ -66,14 +66,19 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now")
             .mockReturnValueOnce(now) // joinedAt inside handleVoiceJoin
+            .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
             .mockReturnValueOnce(now + 20_000) // Date.now() - session.joinedAt in handleVoiceLeave
+            .mockReturnValueOnce(now + 20_000) // saveActiveSessions in handleVoiceLeave
             .mockReturnValueOnce(now + 20_000); // cutoff calculation in handleVoiceLeave
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
-        const savedData = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
+        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("voice-time.json")
+        );
+        expect(voiceTimeWrites).toHaveLength(1);
+        const savedData = JSON.parse(voiceTimeWrites[0][1]);
         expect(savedData).toHaveLength(1);
         expect(savedData[0]).toMatchObject({
             guildId: "guild1",
@@ -83,16 +88,35 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
         });
     });
 
+    it("saves active sessions to disk on join and leave", () => {
+        const now = 1_000_000_000_000;
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        // One writeFileSync for saveActiveSessions on join
+        const activeSessionsWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("active-sessions.json")
+        );
+        expect(activeSessionsWrites.length).toBe(1);
+    });
+
     it("ignores sessions shorter than 10 seconds", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now")
             .mockReturnValueOnce(now) // joinedAt
-            .mockReturnValueOnce(now + 5_000); // leave time (5s < 10s)
+            .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
+            .mockReturnValueOnce(now + 5_000) // leave time (5s < 10s)
+            .mockReturnValueOnce(now + 5_000); // saveActiveSessions in handleVoiceLeave
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        // Only active-sessions.json writes, no voice-time.json write
+        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("voice-time.json")
+        );
+        expect(voiceTimeWrites).toHaveLength(0);
     });
 
     it("does nothing if leave is called without a prior join", () => {
@@ -114,13 +138,19 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
 
         jest.spyOn(Date, "now")
             .mockReturnValueOnce(now) // joinedAt
+            .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
             .mockReturnValueOnce(now + 15_000) // duration calc
+            .mockReturnValueOnce(now + 15_000) // saveActiveSessions in handleVoiceLeave
             .mockReturnValueOnce(now + 15_000); // cutoff calc
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        const savedData = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
+        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("voice-time.json")
+        );
+        expect(voiceTimeWrites).toHaveLength(1);
+        const savedData = JSON.parse(voiceTimeWrites[0][1]);
         // Old entry should be pruned, only new entry remains
         expect(savedData).toHaveLength(1);
         expect(savedData[0].userId).toBe("user1");
@@ -129,6 +159,12 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
 
 describe("recoverActiveSessions", () => {
     it("creates sessions for non-bot members in voice channels", () => {
+        // No saved active sessions
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
+            return "[]";
+        });
+
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -189,6 +225,11 @@ describe("recoverActiveSessions", () => {
     });
 
     it("skips bot users", () => {
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
+            return "[]";
+        });
+
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -232,6 +273,11 @@ describe("recoverActiveSessions", () => {
     });
 
     it("skips non-voice channels", () => {
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
+            return "[]";
+        });
+
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -272,6 +318,146 @@ describe("recoverActiveSessions", () => {
             1
         );
         expect(leaderboard.size).toBe(0);
+    });
+
+    it("restores original joinedAt from saved active sessions", () => {
+        const now = 1_000_000_000_000;
+        const joinedAt = now - 3600_000; // joined 1 hour ago
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const savedSessions = {
+            "guild1:user1": { channelId: "vc1", joinedAt },
+            _savedAt: now - 60_000, // saved 1 min ago
+        };
+
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes("active-sessions.json"))
+                return JSON.stringify(savedSessions);
+            return "[]";
+        });
+
+        const mockClient = {
+            guilds: {
+                cache: new Map([
+                    [
+                        "guild1",
+                        {
+                            id: "guild1",
+                            channels: {
+                                cache: new Map([
+                                    [
+                                        "vc1",
+                                        {
+                                            id: "vc1",
+                                            isVoiceBased: () => true,
+                                            members: new Map([
+                                                [
+                                                    "user1",
+                                                    {
+                                                        id: "user1",
+                                                        user: { bot: false },
+                                                    },
+                                                ],
+                                            ]),
+                                        },
+                                    ],
+                                ]),
+                            },
+                        },
+                    ],
+                ]),
+            },
+        };
+
+        voiceTime.recoverActiveSessions(mockClient);
+
+        const leaderboard = voiceTime.getVoiceTimeLeaderboard("guild1", 7);
+        // Should show ~1 hour, not ~0 (which would happen without restore)
+        expect(leaderboard.get("user1")).toBe(3600_000);
+    });
+
+    it("finalizes sessions for users who left while bot was down", () => {
+        const now = 1_000_000_000_000;
+        const joinedAt = now - 3600_000; // joined 1 hour ago
+        const savedAt = now - 60_000; // saved 1 min ago
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const savedSessions = {
+            "guild1:user1": { channelId: "vc1", joinedAt },
+            _savedAt: savedAt,
+        };
+
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes("active-sessions.json"))
+                return JSON.stringify(savedSessions);
+            return "[]";
+        });
+
+        // Empty server — user1 left while bot was down
+        const mockClient = {
+            guilds: {
+                cache: new Map([
+                    [
+                        "guild1",
+                        {
+                            id: "guild1",
+                            channels: {
+                                cache: new Map([
+                                    [
+                                        "vc1",
+                                        {
+                                            id: "vc1",
+                                            isVoiceBased: () => true,
+                                            members: new Map(),
+                                        },
+                                    ],
+                                ]),
+                            },
+                        },
+                    ],
+                ]),
+            },
+        };
+
+        voiceTime.recoverActiveSessions(mockClient);
+
+        // Should have written a completed session to voice-time.json
+        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("voice-time.json")
+        );
+        expect(voiceTimeWrites.length).toBeGreaterThanOrEqual(1);
+        const savedData = JSON.parse(voiceTimeWrites[0][1]);
+        expect(savedData[0]).toMatchObject({
+            guildId: "guild1",
+            userId: "user1",
+            duration: savedAt - joinedAt, // time up to last save
+        });
+    });
+});
+
+describe("flushActiveSessions", () => {
+    it("persists all active sessions and clears the map", () => {
+        const now = 1_000_000_000_000;
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        // Advance time
+        Date.now.mockReturnValue(now + 60_000);
+        fs.writeFileSync.mockClear();
+
+        voiceTime.flushActiveSessions();
+
+        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
+            (call) => call[0].includes("voice-time.json")
+        );
+        expect(voiceTimeWrites).toHaveLength(1);
+        const savedData = JSON.parse(voiceTimeWrites[0][1]);
+        expect(savedData[0]).toMatchObject({
+            guildId: "guild1",
+            userId: "user1",
+            duration: 60_000,
+        });
     });
 });
 
