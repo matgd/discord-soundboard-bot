@@ -100,13 +100,13 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
         expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
-    it("prunes entries older than 31 days on save", () => {
+    it("prunes entries older than 365 days on save", () => {
         const now = 1_000_000_000_000;
         const oldEntry = {
             guildId: "guild1",
             userId: "user2",
             channelId: "channel1",
-            joinedAt: now - 32 * 24 * 60 * 60 * 1000, // 32 days ago
+            joinedAt: now - 366 * 24 * 60 * 60 * 1000, // 366 days ago
             duration: 60_000,
         };
 

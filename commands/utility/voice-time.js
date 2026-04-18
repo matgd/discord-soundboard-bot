@@ -6,6 +6,10 @@ const PERIOD_CHOICES = [
     { name: "Last 7 days", name_localizations: { pl: "Ostatnie 7 dni" }, value: 7 },
     { name: "Last 14 days", name_localizations: { pl: "Ostatnie 14 dni" }, value: 14 },
     { name: "Last 30 days", name_localizations: { pl: "Ostatnie 30 dni" }, value: 30 },
+    { name: "Last 60 days", name_localizations: { pl: "Ostatnie 60 dni" }, value: 60 },
+    { name: "Last 90 days", name_localizations: { pl: "Ostatnie 90 dni" }, value: 90 },
+    { name: "Last 180 days", name_localizations: { pl: "Ostatnie 180 dni" }, value: 180 },
+    { name: "Last 365 days", name_localizations: { pl: "Ostatnie 365 dni" }, value: 365 },
 ];
 
 module.exports = {

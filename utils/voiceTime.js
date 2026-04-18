@@ -55,8 +55,8 @@ function handleVoiceLeave(guildId, userId) {
         duration,
     });
 
-    // Prune entries older than 31 days
-    const cutoff = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    // Prune entries older than 365 days
+    const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
     const pruned = data.filter((e) => e.joinedAt >= cutoff);
 
     saveData(pruned);
