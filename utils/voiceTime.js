@@ -194,6 +194,53 @@ function getVoiceTimeLeaderboard(guildId, days) {
 }
 
 /**
+ * Returns the number of distinct days each user was present in voice for a given guild and time window.
+ * @param {string} guildId
+ * @param {number} days - Number of days to look back
+ * @returns {Map<string, number>} Map of userId -> distinct day count
+ */
+function getDaysPresentLeaderboard(guildId, days) {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    // Count distinct dates (in local server time via UTC) per user from completed sessions
+    const rows = getDb()
+        .prepare(
+            `SELECT user_id, COUNT(DISTINCT date(joined_at / 1000, 'unixepoch')) AS day_count
+             FROM voice_sessions
+             WHERE guild_id = ? AND joined_at >= ?
+             GROUP BY user_id`,
+        )
+        .all(guildId, cutoff);
+
+    const counts = new Map();
+    for (const row of rows) {
+        counts.set(row.user_id, row.day_count);
+    }
+
+    // Add today for any user currently in a voice channel in this guild
+    const todayStr = new Date().toISOString().slice(0, 10);
+    for (const [key] of activeSessions.entries()) {
+        const [sessionGuildId, userId] = key.split(":");
+        if (sessionGuildId !== guildId) continue;
+
+        // Check if today is already counted from DB rows
+        const alreadyHasToday = getDb()
+            .prepare(
+                `SELECT 1 FROM voice_sessions
+                 WHERE guild_id = ? AND user_id = ? AND date(joined_at / 1000, 'unixepoch') = ?
+                 LIMIT 1`,
+            )
+            .get(guildId, userId, todayStr);
+
+        if (!alreadyHasToday) {
+            counts.set(userId, (counts.get(userId) || 0) + 1);
+        }
+    }
+
+    return counts;
+}
+
+/**
  * Formats milliseconds into a human-readable string like "2h 15m".
  */
 function formatDuration(ms) {
@@ -242,6 +289,7 @@ module.exports = {
     handleVoiceLeave,
     recoverActiveSessions,
     getVoiceTimeLeaderboard,
+    getDaysPresentLeaderboard,
     formatDuration,
     flushActiveSessions,
     closeDb,

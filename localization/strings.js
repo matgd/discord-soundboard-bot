@@ -39,6 +39,10 @@ module.exports = {
     VOICE_TIME_PERIOD_DESCRIPTION: "Time period to show (default: 7 days).",
     VOICE_TIME_TITLE: "Voice time — last {days} days",
     VOICE_TIME_NO_DATA: "No voice time data for this period.",
+    DAYS_PRESENT_DESCRIPTION: "Show how many days users were present in voice channels.",
+    DAYS_PRESENT_PERIOD_DESCRIPTION: "Time period to check (default: 7 days).",
+    DAYS_PRESENT_TITLE: "Days present — last {days} days",
+    DAYS_PRESENT_NO_DATA: "No voice presence data for this period.",
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
@@ -66,6 +70,10 @@ module.exports = {
     VOICE_TIME_PERIOD_DESCRIPTION: "Okres czasu do wyświetlenia (domyślnie: 7 dni).",
     VOICE_TIME_TITLE: "Czas na voice — ostatnie {days} dni",
     VOICE_TIME_NO_DATA: "Brak danych o czasie na voice w tym okresie.",
+    DAYS_PRESENT_DESCRIPTION: "Pokaż ile dni użytkownicy byli obecni na kanałach głosowych.",
+    DAYS_PRESENT_PERIOD_DESCRIPTION: "Okres czasu do sprawdzenia (domyślnie: 7 dni).",
+    DAYS_PRESENT_TITLE: "Dni obecności — ostatnie {days} dni",
+    DAYS_PRESENT_NO_DATA: "Brak danych o obecności na voice w tym okresie.",
   },
   interpolate,
 }

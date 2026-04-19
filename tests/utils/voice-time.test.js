@@ -548,3 +548,121 @@ describe("getVoiceTimeLeaderboard", () => {
         expect(leaderboard.size).toBe(0);
     });
 });
+
+describe("getDaysPresentLeaderboard", () => {
+    it("counts distinct days per user from completed sessions", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const day1 = now - 2 * 24 * 60 * 60 * 1000; // 2 days ago
+        const day2 = now - 1 * 24 * 60 * 60 * 1000; // 1 day ago
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        // user1 present on 2 distinct days
+        insert.run("guild1", "user1", "c1", day1, 60_000);
+        insert.run("guild1", "user1", "c1", day2, 60_000);
+        // user2 present on 1 day (two sessions same day)
+        insert.run("guild1", "user2", "c1", day1, 30_000);
+        insert.run("guild1", "user2", "c1", day1 + 60_000, 30_000);
+        db.close();
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(2);
+        expect(counts.get("user2")).toBe(1);
+    });
+
+    it("filters by guild", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", now - 60_000, 30_000);
+        insert.run("guild2", "user1", "c1", now - 60_000, 30_000);
+        db.close();
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(1);
+        expect(counts.size).toBe(1);
+    });
+
+    it("excludes entries outside the time window", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", now - 10 * 24 * 60 * 60 * 1000, 60_000); // 10 days ago
+        insert.run("guild1", "user1", "c1", now - 60_000, 60_000); // today
+        db.close();
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 1);
+        expect(counts.get("user1")).toBe(1);
+    });
+
+    it("includes today for active sessions not yet in DB", () => {
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+        jest.spyOn(global, "Date").mockImplementation(
+            (...args) => {
+                if (args.length === 0) return new (jest.requireActual("@jest/globals").Date || global.Date.__original || Object.getPrototypeOf(Date))(now);
+                return new (Object.getPrototypeOf(Date))(...args);
+            }
+        );
+        // The above mock is tricky; let's use a simpler approach
+        jest.restoreAllMocks();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(1);
+    });
+
+    it("does not double-count today if active user already has DB entry for today", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        // Insert a completed session for today
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        ).run("guild1", "user1", "c1", now - 60_000, 30_000);
+        db.close();
+
+        // User is also currently in voice
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(1); // not 2
+    });
+
+    it("returns empty map when no data exists", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.size).toBe(0);
+    });
+
+    it("ignores active sessions from other guilds", () => {
+        const now = Date.now();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild2", "user1", "channel1");
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.size).toBe(0);
+    });
+});
