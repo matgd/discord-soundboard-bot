@@ -1,28 +1,53 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const Database = require("better-sqlite3");
 
-const DATA_PATH = path.join(__dirname, "../dataStore/voice-time.json");
+const DB_PATH = path.join(__dirname, "../dataStore/voice-time.db");
 const ACTIVE_SESSIONS_PATH = path.join(__dirname, "../dataStore/active-sessions.json");
 
 // In-memory map of active voice sessions: Map<"guildId:userId", { channelId, joinedAt }>
 const activeSessions = new Map();
 
-function loadData() {
-    try {
-        return JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
-    } catch {
-        return [];
-    }
-}
+let db;
 
-function saveData(data) {
-    fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+function getDb() {
+    if (!db) {
+        db = new Database(DB_PATH);
+        db.pragma("journal_mode = WAL");
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS voice_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                joined_at INTEGER NOT NULL,
+                duration INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_voice_sessions_guild_joined
+                ON voice_sessions (guild_id, joined_at);
+            CREATE INDEX IF NOT EXISTS idx_voice_sessions_user
+                ON voice_sessions (guild_id, user_id, joined_at);
+        `);
+    }
+    return db;
 }
 
 function ensureVoiceTimeFileExists() {
-    if (!fs.existsSync(DATA_PATH)) {
-        fs.writeFileSync(DATA_PATH, "[]");
-    }
+    getDb();
+}
+
+function insertSession(guildId, userId, channelId, joinedAt, duration) {
+    getDb()
+        .prepare(
+            `INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration)
+             VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(guildId, userId, channelId, joinedAt, duration);
+}
+
+function pruneOldEntries() {
+    const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    getDb().prepare(`DELETE FROM voice_sessions WHERE joined_at < ?`).run(cutoff);
 }
 
 function saveActiveSessions() {
@@ -66,20 +91,8 @@ function handleVoiceLeave(guildId, userId) {
     // Ignore sessions shorter than 10 seconds (likely transient)
     if (duration < 10_000) return;
 
-    const data = loadData();
-    data.push({
-        guildId,
-        userId,
-        channelId: session.channelId,
-        joinedAt: session.joinedAt,
-        duration,
-    });
-
-    // Prune entries older than 365 days
-    const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
-    const pruned = data.filter((e) => e.joinedAt >= cutoff);
-
-    saveData(pruned);
+    insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
+    pruneOldEntries();
 }
 
 /**
@@ -127,18 +140,9 @@ function recoverActiveSessions(client) {
             if (duration < 10_000) continue;
 
             const [guildId, userId] = key.split(":");
-            const data = loadData();
-            data.push({
-                guildId,
-                userId,
-                channelId: session.channelId,
-                joinedAt: session.joinedAt,
-                duration,
-            });
-            const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
-            const pruned = data.filter((e) => e.joinedAt >= cutoff);
-            saveData(pruned);
+            insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
         }
+        pruneOldEntries();
     }
 
     saveActiveSessions();
@@ -157,16 +161,19 @@ function recoverActiveSessions(client) {
  */
 function getVoiceTimeLeaderboard(guildId, days) {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const data = loadData();
+
+    const rows = getDb()
+        .prepare(
+            `SELECT user_id, SUM(duration) AS total
+             FROM voice_sessions
+             WHERE guild_id = ? AND joined_at >= ?
+             GROUP BY user_id`,
+        )
+        .all(guildId, cutoff);
 
     const totals = new Map();
-
-    // Add completed sessions
-    for (const entry of data) {
-        if (entry.guildId !== guildId) continue;
-        if (entry.joinedAt < cutoff) continue;
-        const current = totals.get(entry.userId) || 0;
-        totals.set(entry.userId, current + entry.duration);
+    for (const row of rows) {
+        totals.set(row.user_id, row.total);
     }
 
     // Add ongoing sessions
@@ -204,25 +211,29 @@ function formatDuration(ms) {
  * Flushes all active sessions to completed data (for graceful shutdown).
  */
 function flushActiveSessions() {
-    for (const [key, session] of activeSessions.entries()) {
-        const duration = Date.now() - session.joinedAt;
-        if (duration < 10_000) continue;
+    const insertMany = getDb().transaction(() => {
+        for (const [key, session] of activeSessions.entries()) {
+            const duration = Date.now() - session.joinedAt;
+            if (duration < 10_000) continue;
 
-        const [guildId, userId] = key.split(":");
-        const data = loadData();
-        data.push({
-            guildId,
-            userId,
-            channelId: session.channelId,
-            joinedAt: session.joinedAt,
-            duration,
-        });
-        const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
-        const pruned = data.filter((e) => e.joinedAt >= cutoff);
-        saveData(pruned);
-    }
+            const [guildId, userId] = key.split(":");
+            insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
+        }
+    });
+    insertMany();
+    pruneOldEntries();
     activeSessions.clear();
     saveActiveSessions();
+}
+
+/**
+ * Closes the database connection (for graceful shutdown).
+ */
+function closeDb() {
+    if (db) {
+        db.close();
+        db = null;
+    }
 }
 
 module.exports = {
@@ -233,4 +244,5 @@ module.exports = {
     getVoiceTimeLeaderboard,
     formatDuration,
     flushActiveSessions,
+    closeDb,
 };

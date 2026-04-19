@@ -1,23 +1,45 @@
-const { describe, it, expect, beforeEach } = require("@jest/globals");
+const { describe, it, expect, beforeEach, afterEach } = require("@jest/globals");
+const path = require("node:path");
+const fs = require("node:fs");
+const os = require("node:os");
 
-jest.mock("node:fs");
-
-let fs;
 let voiceTime;
+let tmpDir;
+let dbPath;
+let activeSessionsPath;
 
 beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
-    // Reset modules so each test gets a fresh activeSessions Map
     jest.resetModules();
-    jest.mock("node:fs");
 
-    fs = require("node:fs");
-    fs.readFileSync.mockReturnValue("[]");
-    fs.writeFileSync.mockImplementation(() => {});
-    fs.existsSync.mockReturnValue(true);
+    // Create a temp directory for each test's DB + active-sessions file
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vt-test-"));
+    dbPath = path.join(tmpDir, "voice-time.db");
+    activeSessionsPath = path.join(tmpDir, "active-sessions.json");
+
+    // Mock path.join to redirect dataStore paths to our temp dir
+    const originalJoin = path.join;
+    jest.spyOn(path, "join").mockImplementation((...args) => {
+        const result = originalJoin(...args);
+        if (result.endsWith("dataStore/voice-time.db") || result.endsWith("dataStore\\voice-time.db")) {
+            return dbPath;
+        }
+        if (result.endsWith("dataStore/active-sessions.json") || result.endsWith("dataStore\\active-sessions.json")) {
+            return activeSessionsPath;
+        }
+        return result;
+    });
 
     voiceTime = require("../../utils/voiceTime");
+    // Initialize the DB
+    voiceTime.ensureVoiceTimeFileExists();
+});
+
+afterEach(() => {
+    voiceTime.closeDb();
+    // Clean up temp files
+    fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
 describe("formatDuration", () => {
@@ -45,19 +67,9 @@ describe("formatDuration", () => {
 });
 
 describe("ensureVoiceTimeFileExists", () => {
-    it("creates the file when it does not exist", () => {
-        fs.existsSync.mockReturnValue(false);
-        voiceTime.ensureVoiceTimeFileExists();
-        expect(fs.writeFileSync).toHaveBeenCalledWith(
-            expect.stringContaining("voice-time.json"),
-            "[]"
-        );
-    });
-
-    it("does nothing when file already exists", () => {
-        fs.existsSync.mockReturnValue(true);
-        voiceTime.ensureVoiceTimeFileExists();
-        expect(fs.writeFileSync).not.toHaveBeenCalled();
+    it("creates the database file when called", () => {
+        // DB was already initialized in beforeEach
+        expect(fs.existsSync(dbPath)).toBe(true);
     });
 });
 
@@ -69,36 +81,38 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
             .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
             .mockReturnValueOnce(now + 20_000) // Date.now() - session.joinedAt in handleVoiceLeave
             .mockReturnValueOnce(now + 20_000) // saveActiveSessions in handleVoiceLeave
-            .mockReturnValueOnce(now + 20_000); // cutoff calculation in handleVoiceLeave
+            .mockReturnValueOnce(now + 20_000) // duration check in handleVoiceLeave
+            .mockReturnValueOnce(now + 20_000); // pruneOldEntries
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("voice-time.json")
-        );
-        expect(voiceTimeWrites).toHaveLength(1);
-        const savedData = JSON.parse(voiceTimeWrites[0][1]);
-        expect(savedData).toHaveLength(1);
-        expect(savedData[0]).toMatchObject({
-            guildId: "guild1",
-            userId: "user1",
-            channelId: "channel1",
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user1",
+            channel_id: "channel1",
             duration: 20_000,
         });
     });
 
-    it("saves active sessions to disk on join and leave", () => {
+    it("saves active sessions to disk on join", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now").mockReturnValue(now);
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
 
-        // One writeFileSync for saveActiveSessions on join
-        const activeSessionsWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("active-sessions.json")
-        );
-        expect(activeSessionsWrites.length).toBe(1);
+        expect(fs.existsSync(activeSessionsPath)).toBe(true);
+        const saved = JSON.parse(fs.readFileSync(activeSessionsPath, "utf8"));
+        expect(saved["guild1:user1"]).toMatchObject({
+            channelId: "channel1",
+            joinedAt: now,
+        });
     });
 
     it("ignores sessions shorter than 10 seconds", () => {
@@ -112,59 +126,59 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        // Only active-sessions.json writes, no voice-time.json write
-        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("voice-time.json")
-        );
-        expect(voiceTimeWrites).toHaveLength(0);
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(0);
     });
 
     it("does nothing if leave is called without a prior join", () => {
         voiceTime.handleVoiceLeave("guild1", "unknownUser");
-        expect(fs.writeFileSync).not.toHaveBeenCalled();
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(0);
     });
 
     it("prunes entries older than 365 days on save", () => {
         const now = 1_000_000_000_000;
-        const oldEntry = {
-            guildId: "guild1",
-            userId: "user2",
-            channelId: "channel1",
-            joinedAt: now - 366 * 24 * 60 * 60 * 1000, // 366 days ago
-            duration: 60_000,
-        };
 
-        fs.readFileSync.mockReturnValue(JSON.stringify([oldEntry]));
+        // Insert an old entry directly into the DB
+        const Database = require("better-sqlite3");
+        let db = new Database(dbPath);
+        db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        ).run("guild1", "user2", "channel1", now - 366 * 24 * 60 * 60 * 1000, 60_000);
+        db.close();
 
         jest.spyOn(Date, "now")
             .mockReturnValueOnce(now) // joinedAt
             .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
             .mockReturnValueOnce(now + 15_000) // duration calc
             .mockReturnValueOnce(now + 15_000) // saveActiveSessions in handleVoiceLeave
-            .mockReturnValueOnce(now + 15_000); // cutoff calc
+            .mockReturnValueOnce(now + 15_000) // duration check
+            .mockReturnValueOnce(now + 15_000); // pruneOldEntries cutoff
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
         voiceTime.handleVoiceLeave("guild1", "user1");
 
-        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("voice-time.json")
-        );
-        expect(voiceTimeWrites).toHaveLength(1);
-        const savedData = JSON.parse(voiceTimeWrites[0][1]);
+        db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
         // Old entry should be pruned, only new entry remains
-        expect(savedData).toHaveLength(1);
-        expect(savedData[0].userId).toBe("user1");
+        expect(rows).toHaveLength(1);
+        expect(rows[0].user_id).toBe("user1");
     });
 });
 
 describe("recoverActiveSessions", () => {
     it("creates sessions for non-bot members in voice channels", () => {
-        // No saved active sessions
-        fs.readFileSync.mockImplementation((filePath) => {
-            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
-            return "[]";
-        });
-
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -225,11 +239,6 @@ describe("recoverActiveSessions", () => {
     });
 
     it("skips bot users", () => {
-        fs.readFileSync.mockImplementation((filePath) => {
-            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
-            return "[]";
-        });
-
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -273,11 +282,6 @@ describe("recoverActiveSessions", () => {
     });
 
     it("skips non-voice channels", () => {
-        fs.readFileSync.mockImplementation((filePath) => {
-            if (filePath.includes("active-sessions.json")) throw new Error("ENOENT");
-            return "[]";
-        });
-
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -329,12 +333,7 @@ describe("recoverActiveSessions", () => {
             "guild1:user1": { channelId: "vc1", joinedAt },
             _savedAt: now - 60_000, // saved 1 min ago
         };
-
-        fs.readFileSync.mockImplementation((filePath) => {
-            if (filePath.includes("active-sessions.json"))
-                return JSON.stringify(savedSessions);
-            return "[]";
-        });
+        fs.writeFileSync(activeSessionsPath, JSON.stringify(savedSessions));
 
         const mockClient = {
             guilds: {
@@ -386,12 +385,7 @@ describe("recoverActiveSessions", () => {
             "guild1:user1": { channelId: "vc1", joinedAt },
             _savedAt: savedAt,
         };
-
-        fs.readFileSync.mockImplementation((filePath) => {
-            if (filePath.includes("active-sessions.json"))
-                return JSON.stringify(savedSessions);
-            return "[]";
-        });
+        fs.writeFileSync(activeSessionsPath, JSON.stringify(savedSessions));
 
         // Empty server — user1 left while bot was down
         const mockClient = {
@@ -421,15 +415,16 @@ describe("recoverActiveSessions", () => {
 
         voiceTime.recoverActiveSessions(mockClient);
 
-        // Should have written a completed session to voice-time.json
-        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("voice-time.json")
-        );
-        expect(voiceTimeWrites.length).toBeGreaterThanOrEqual(1);
-        const savedData = JSON.parse(voiceTimeWrites[0][1]);
-        expect(savedData[0]).toMatchObject({
-            guildId: "guild1",
-            userId: "user1",
+        // Should have written a completed session to the DB
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user1",
             duration: savedAt - joinedAt, // time up to last save
         });
     });
@@ -444,18 +439,18 @@ describe("flushActiveSessions", () => {
 
         // Advance time
         Date.now.mockReturnValue(now + 60_000);
-        fs.writeFileSync.mockClear();
 
         voiceTime.flushActiveSessions();
 
-        const voiceTimeWrites = fs.writeFileSync.mock.calls.filter(
-            (call) => call[0].includes("voice-time.json")
-        );
-        expect(voiceTimeWrites).toHaveLength(1);
-        const savedData = JSON.parse(voiceTimeWrites[0][1]);
-        expect(savedData[0]).toMatchObject({
-            guildId: "guild1",
-            userId: "user1",
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user1",
             duration: 60_000,
         });
     });
@@ -466,30 +461,15 @@ describe("getVoiceTimeLeaderboard", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        const data = [
-            {
-                guildId: "guild1",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 60_000,
-                duration: 30_000,
-            },
-            {
-                guildId: "guild1",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 120_000,
-                duration: 50_000,
-            },
-            {
-                guildId: "guild1",
-                userId: "user2",
-                channelId: "c1",
-                joinedAt: now - 60_000,
-                duration: 10_000,
-            },
-        ];
-        fs.readFileSync.mockReturnValue(JSON.stringify(data));
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", now - 60_000, 30_000);
+        insert.run("guild1", "user1", "c1", now - 120_000, 50_000);
+        insert.run("guild1", "user2", "c1", now - 60_000, 10_000);
+        db.close();
 
         const leaderboard = voiceTime.getVoiceTimeLeaderboard("guild1", 7);
         expect(leaderboard.get("user1")).toBe(80_000);
@@ -500,23 +480,14 @@ describe("getVoiceTimeLeaderboard", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        const data = [
-            {
-                guildId: "guild1",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 60_000,
-                duration: 30_000,
-            },
-            {
-                guildId: "guild2",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 60_000,
-                duration: 50_000,
-            },
-        ];
-        fs.readFileSync.mockReturnValue(JSON.stringify(data));
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", now - 60_000, 30_000);
+        insert.run("guild2", "user1", "c1", now - 60_000, 50_000);
+        db.close();
 
         const leaderboard = voiceTime.getVoiceTimeLeaderboard("guild1", 7);
         expect(leaderboard.get("user1")).toBe(30_000);
@@ -526,23 +497,14 @@ describe("getVoiceTimeLeaderboard", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        const data = [
-            {
-                guildId: "guild1",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 2 * 24 * 60 * 60 * 1000, // 2 days ago
-                duration: 30_000,
-            },
-            {
-                guildId: "guild1",
-                userId: "user1",
-                channelId: "c1",
-                joinedAt: now - 60_000, // 1 minute ago
-                duration: 10_000,
-            },
-        ];
-        fs.readFileSync.mockReturnValue(JSON.stringify(data));
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", now - 2 * 24 * 60 * 60 * 1000, 30_000); // 2 days ago
+        insert.run("guild1", "user1", "c1", now - 60_000, 10_000); // 1 minute ago
+        db.close();
 
         // Only look back 1 day
         const leaderboard = voiceTime.getVoiceTimeLeaderboard("guild1", 1);
