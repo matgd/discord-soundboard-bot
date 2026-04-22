@@ -26,9 +26,11 @@ function getLastSevenDays() {
     return weekDays;
 }
 
-function buildWeekTicksRow(weekDays, dayDates) {
+function buildWeekTicksRow(weekDays, dayDates, t) {
     const dateSet = new Set(dayDates);
-    return weekDays.map((d) => (dateSet.has(d.dateStr) ? "✅" : "⬜")).join(" | ");
+    const header = weekDays.map((d) => t.DAY_SHORT[d.dayOfWeek].padStart(2)).join("  ");
+    const ticks = weekDays.map((d) => (dateSet.has(d.dateStr) ? " ■" : " ·")).join("  ");
+    return `\`${header}\`\n\`${ticks}\``;
 }
 
 module.exports = {
@@ -65,14 +67,11 @@ module.exports = {
         const weekDays = showWeek ? getLastSevenDays() : [];
 
         const lines = [];
-        if (showWeek) {
-            lines.push(weekDays.map((d) => t.DAY_SHORT[d.dayOfWeek]).join(" | "));
-        }
         for (let i = 0; i < sorted.length; i++) {
             const [userId, dayDates] = sorted[i];
             let line = `${getRankMedal(i)} <@${userId}> — ${dayDates.length}`;
             if (showWeek) {
-                line += `\n${buildWeekTicksRow(weekDays, dayDates)}`;
+                line += `\n${buildWeekTicksRow(weekDays, dayDates, t)}`;
             }
             lines.push(line);
         }
