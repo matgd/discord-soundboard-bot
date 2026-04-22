@@ -194,30 +194,31 @@ function getVoiceTimeLeaderboard(guildId, days) {
 }
 
 /**
- * Returns the number of distinct days each user was present in voice for a given guild and time window.
+ * Returns the distinct shifted dates each user was present in voice for a given guild and time window.
  * Days are counted from 4:00 AM to 4:00 AM to avoid splitting late-night sessions across two days.
  * @param {string} guildId
  * @param {number} days - Number of days to look back
- * @returns {Map<string, number>} Map of userId -> distinct day count
+ * @returns {Map<string, string[]>} Map of userId -> array of date strings (YYYY-MM-DD, shifted)
  */
 const DAY_SHIFT_MS = 4 * 60 * 60 * 1000; // 4 hours in ms
 
 function getDaysPresentLeaderboard(guildId, days) {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
-    // Subtract 4h from timestamps so that 04:00 becomes the day boundary
+    // Get distinct shifted dates per user from completed sessions
     const rows = getDb()
         .prepare(
-            `SELECT user_id, COUNT(DISTINCT date((joined_at - ${DAY_SHIFT_MS}) / 1000, 'unixepoch')) AS day_count
+            `SELECT user_id, date((joined_at - ${DAY_SHIFT_MS}) / 1000, 'unixepoch') AS day
              FROM voice_sessions
              WHERE guild_id = ? AND joined_at >= ?
-             GROUP BY user_id`,
+             GROUP BY user_id, day`,
         )
         .all(guildId, cutoff);
 
-    const counts = new Map();
+    const dates = new Map();
     for (const row of rows) {
-        counts.set(row.user_id, row.day_count);
+        if (!dates.has(row.user_id)) dates.set(row.user_id, new Set());
+        dates.get(row.user_id).add(row.day);
     }
 
     // Add current "shifted day" for any user currently in a voice channel in this guild
@@ -227,21 +228,17 @@ function getDaysPresentLeaderboard(guildId, days) {
         const [sessionGuildId, userId] = key.split(":");
         if (sessionGuildId !== guildId) continue;
 
-        // Check if this shifted day is already counted from DB rows
-        const alreadyHasToday = getDb()
-            .prepare(
-                `SELECT 1 FROM voice_sessions
-                 WHERE guild_id = ? AND user_id = ? AND date((joined_at - ${DAY_SHIFT_MS}) / 1000, 'unixepoch') = ?
-                 LIMIT 1`,
-            )
-            .get(guildId, userId, todayStr);
-
-        if (!alreadyHasToday) {
-            counts.set(userId, (counts.get(userId) || 0) + 1);
-        }
+        if (!dates.has(userId)) dates.set(userId, new Set());
+        dates.get(userId).add(todayStr);
     }
 
-    return counts;
+    // Convert Sets to sorted arrays
+    const result = new Map();
+    for (const [userId, daySet] of dates.entries()) {
+        result.set(userId, [...daySet].sort());
+    }
+
+    return result;
 }
 
 /**
@@ -294,6 +291,7 @@ module.exports = {
     recoverActiveSessions,
     getVoiceTimeLeaderboard,
     getDaysPresentLeaderboard,
+    DAY_SHIFT_MS,
     formatDuration,
     flushActiveSessions,
     closeDb,

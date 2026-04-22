@@ -550,7 +550,7 @@ describe("getVoiceTimeLeaderboard", () => {
 });
 
 describe("getDaysPresentLeaderboard", () => {
-    it("counts distinct days per user from completed sessions", () => {
+    it("returns distinct date arrays per user from completed sessions", () => {
         // Use noon timestamps to avoid 4AM boundary issues
         const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
@@ -571,9 +571,9 @@ describe("getDaysPresentLeaderboard", () => {
         insert.run("guild1", "user2", "c1", day1 + 60_000, 30_000);
         db.close();
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(2);
-        expect(counts.get("user2")).toBe(1);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-13", "2025-06-14"]);
+        expect(result.get("user2")).toEqual(["2025-06-13"]);
     });
 
     it("treats sessions before 4:00 AM as the previous day", () => {
@@ -589,13 +589,12 @@ describe("getDaysPresentLeaderboard", () => {
         const insert = db.prepare(
             "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
         );
-        // Both sessions should fall on the same shifted day (June 14)
         insert.run("guild1", "user1", "c1", sessionAt10PM, 60_000);
         insert.run("guild1", "user1", "c1", sessionAt2AM, 60_000);
         db.close();
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(1); // same shifted day
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-14"]); // same shifted day
     });
 
     it("treats a session at 4:00 AM as the new day", () => {
@@ -615,8 +614,8 @@ describe("getDaysPresentLeaderboard", () => {
         insert.run("guild1", "user1", "c1", at4AM, 60_000);
         db.close();
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(2); // two different shifted days
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-14", "2025-06-15"]);
     });
 
     it("filters by guild", () => {
@@ -632,9 +631,9 @@ describe("getDaysPresentLeaderboard", () => {
         insert.run("guild2", "user1", "c1", now - 60_000, 30_000);
         db.close();
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(1);
-        expect(counts.size).toBe(1);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toHaveLength(1);
+        expect(result.size).toBe(1);
     });
 
     it("excludes entries outside the time window", () => {
@@ -650,8 +649,8 @@ describe("getDaysPresentLeaderboard", () => {
         insert.run("guild1", "user1", "c1", now - 60_000, 60_000); // today
         db.close();
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 1);
-        expect(counts.get("user1")).toBe(1);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 1);
+        expect(result.get("user1")).toHaveLength(1);
     });
 
     it("includes today for active sessions not yet in DB", () => {
@@ -660,8 +659,8 @@ describe("getDaysPresentLeaderboard", () => {
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(1);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-15"]);
     });
 
     it("does not double-count today if active user already has DB entry for today", () => {
@@ -679,16 +678,16 @@ describe("getDaysPresentLeaderboard", () => {
         // User is also currently in voice
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.get("user1")).toBe(1); // not 2
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-15"]); // not duplicated
     });
 
     it("returns empty map when no data exists", () => {
         const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.size).toBe(0);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.size).toBe(0);
     });
 
     it("ignores active sessions from other guilds", () => {
@@ -697,7 +696,26 @@ describe("getDaysPresentLeaderboard", () => {
 
         voiceTime.handleVoiceJoin("guild2", "user1", "channel1");
 
-        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
-        expect(counts.size).toBe(0);
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.size).toBe(0);
+    });
+
+    it("returns dates in sorted order", () => {
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        // Insert in reverse order
+        insert.run("guild1", "user1", "c1", new Date("2025-06-14T12:00:00Z").getTime(), 60_000);
+        insert.run("guild1", "user1", "c1", new Date("2025-06-12T12:00:00Z").getTime(), 60_000);
+        insert.run("guild1", "user1", "c1", new Date("2025-06-13T12:00:00Z").getTime(), 60_000);
+        db.close();
+
+        const result = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(result.get("user1")).toEqual(["2025-06-12", "2025-06-13", "2025-06-14"]);
     });
 });
