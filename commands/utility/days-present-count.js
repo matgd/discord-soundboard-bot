@@ -29,7 +29,8 @@ function getLastSevenDays() {
 function buildWeekTicksRow(weekDays, dayDates, t) {
     const dateSet = new Set(dayDates);
     const header = weekDays.map((d) => t.DAY_SHORT[d.dayOfWeek].padStart(2)).join("  ");
-    const ticks = weekDays.map((d) => (dateSet.has(d.dateStr) ? " ■" : " ·")).join("  ");
+    // const ticks = weekDays.map((d) => (dateSet.has(d.dateStr) ? " ■" : " ·")).join("  ");
+    const ticks = weekDays.map((d) => (dateSet.has(d.dateStr) ? " ■" : "  ")).join("  ");
     return `\`${header}\`\n\`${ticks}\``;
 }
 
