@@ -168,6 +168,13 @@ function loadSoundIds() {
     return { sounds, soundsIds };
 }
 
+function getRankMedal(index) {
+    if (index === 0) return "🥇";
+    if (index === 1) return "🥈";
+    if (index === 2) return "🥉";
+    return `**${index + 1}.**`;
+}
+
 module.exports = {
     basenameToId,
     playSoundAndReply,
@@ -176,4 +183,5 @@ module.exports = {
     ensureDataStoreExists,
     loadCommands,
     loadSoundIds,
+    getRankMedal,
 };

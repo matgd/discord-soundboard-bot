@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const { getVoiceTimeLeaderboard, formatDuration } = require("../../utils/voiceTime");
+const { getRankMedal } = require("../../utils/utils");
 const strings = require("../../localization/strings");
 
 const PERIOD_CHOICES = [
@@ -45,8 +46,7 @@ module.exports = {
         const lines = [];
         for (let i = 0; i < sorted.length; i++) {
             const [userId, duration] = sorted[i];
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `**${i + 1}.**`;
-            lines.push(`${medal} <@${userId}> — ${formatDuration(duration)}`);
+            lines.push(`${getRankMedal(i)} <@${userId}> — ${formatDuration(duration)}`);
         }
 
         const embed = new EmbedBuilder()

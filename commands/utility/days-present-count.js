@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const { getDaysPresentLeaderboard, DAY_SHIFT_MS } = require("../../utils/voiceTime");
+const { getRankMedal } = require("../../utils/utils");
 const strings = require("../../localization/strings");
 
 const PERIOD_CHOICES = [
@@ -11,6 +12,24 @@ const PERIOD_CHOICES = [
     { name: "Last 180 days", name_localizations: { pl: "Ostatnie 180 dni" }, value: 180 },
     { name: "Last 365 days", name_localizations: { pl: "Ostatnie 365 dni" }, value: 365 },
 ];
+
+function getLastSevenDays() {
+    const shiftedNow = new Date(Date.now() - DAY_SHIFT_MS);
+    const weekDays = [];
+    for (let d = 6; d >= 0; d--) {
+        const date = new Date(shiftedNow.getTime() - d * 24 * 60 * 60 * 1000);
+        weekDays.push({
+            dateStr: date.toISOString().slice(0, 10),
+            dayOfWeek: date.getUTCDay(),
+        });
+    }
+    return weekDays;
+}
+
+function buildWeekTicksRow(weekDays, dayDates) {
+    const dateSet = new Set(dayDates);
+    return weekDays.map((d) => (dateSet.has(d.dateStr) ? "✅" : "⬜")).join(" | ");
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -42,31 +61,18 @@ module.exports = {
         // Sort by day count descending
         const sorted = [...leaderboard.entries()].sort((a, b) => b[1].length - a[1].length);
 
-        // Build the last 7 shifted calendar days for table header
-        let weekDays = [];
-        if (days <= 7) {
-            const shiftedNow = new Date(Date.now() - DAY_SHIFT_MS);
-            for (let d = 6; d >= 0; d--) {
-                const date = new Date(shiftedNow.getTime() - d * 24 * 60 * 60 * 1000);
-                weekDays.push({
-                    dateStr: date.toISOString().slice(0, 10),
-                    dayOfWeek: date.getUTCDay(),
-                });
-            }
-        }
+        const showWeek = days <= 7;
+        const weekDays = showWeek ? getLastSevenDays() : [];
 
         const lines = [];
-        if (days <= 7) {
+        if (showWeek) {
             lines.push(weekDays.map((d) => t.DAY_SHORT[d.dayOfWeek]).join(" | "));
         }
         for (let i = 0; i < sorted.length; i++) {
             const [userId, dayDates] = sorted[i];
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `**${i + 1}.**`;
-            let line = `${medal} <@${userId}> — ${dayDates.length}`;
-            if (days <= 7) {
-                const dateSet = new Set(dayDates);
-                const ticks = weekDays.map((d) => (dateSet.has(d.dateStr) ? "✅" : "⬜")).join(" | ");
-                line += `\n${ticks}`;
+            let line = `${getRankMedal(i)} <@${userId}> — ${dayDates.length}`;
+            if (showWeek) {
+                line += `\n${buildWeekTicksRow(weekDays, dayDates)}`;
             }
             lines.push(line);
         }
