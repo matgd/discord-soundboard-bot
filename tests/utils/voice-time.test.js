@@ -551,11 +551,12 @@ describe("getVoiceTimeLeaderboard", () => {
 
 describe("getDaysPresentLeaderboard", () => {
     it("counts distinct days per user from completed sessions", () => {
-        const now = Date.now();
+        // Use noon timestamps to avoid 4AM boundary issues
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        const day1 = now - 2 * 24 * 60 * 60 * 1000; // 2 days ago
-        const day2 = now - 1 * 24 * 60 * 60 * 1000; // 1 day ago
+        const day1 = new Date("2025-06-13T12:00:00Z").getTime(); // 2 days ago noon
+        const day2 = new Date("2025-06-14T12:00:00Z").getTime(); // 1 day ago noon
 
         const Database = require("better-sqlite3");
         const db = new Database(dbPath);
@@ -575,8 +576,51 @@ describe("getDaysPresentLeaderboard", () => {
         expect(counts.get("user2")).toBe(1);
     });
 
+    it("treats sessions before 4:00 AM as the previous day", () => {
+        // Session at 2:00 AM on June 15 should count as June 14 (shifted day)
+        const sessionAt2AM = new Date("2025-06-15T02:00:00Z").getTime();
+        // Session at 10:00 PM on June 14 should also count as June 14
+        const sessionAt10PM = new Date("2025-06-14T22:00:00Z").getTime();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        // Both sessions should fall on the same shifted day (June 14)
+        insert.run("guild1", "user1", "c1", sessionAt10PM, 60_000);
+        insert.run("guild1", "user1", "c1", sessionAt2AM, 60_000);
+        db.close();
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(1); // same shifted day
+    });
+
+    it("treats a session at 4:00 AM as the new day", () => {
+        // Session at 3:59 AM on June 15 → shifted day = June 14
+        const before4AM = new Date("2025-06-15T03:59:00Z").getTime();
+        // Session at 4:00 AM on June 15 → shifted day = June 15
+        const at4AM = new Date("2025-06-15T04:00:00Z").getTime();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const insert = db.prepare(
+            "INSERT INTO voice_sessions (guild_id, user_id, channel_id, joined_at, duration) VALUES (?, ?, ?, ?, ?)",
+        );
+        insert.run("guild1", "user1", "c1", before4AM, 60_000);
+        insert.run("guild1", "user1", "c1", at4AM, 60_000);
+        db.close();
+
+        const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
+        expect(counts.get("user1")).toBe(2); // two different shifted days
+    });
+
     it("filters by guild", () => {
-        const now = Date.now();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
         const Database = require("better-sqlite3");
@@ -594,7 +638,7 @@ describe("getDaysPresentLeaderboard", () => {
     });
 
     it("excludes entries outside the time window", () => {
-        const now = Date.now();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
         const Database = require("better-sqlite3");
@@ -613,15 +657,6 @@ describe("getDaysPresentLeaderboard", () => {
     it("includes today for active sessions not yet in DB", () => {
         const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
-        jest.spyOn(global, "Date").mockImplementation(
-            (...args) => {
-                if (args.length === 0) return new (jest.requireActual("@jest/globals").Date || global.Date.__original || Object.getPrototypeOf(Date))(now);
-                return new (Object.getPrototypeOf(Date))(...args);
-            }
-        );
-        // The above mock is tricky; let's use a simpler approach
-        jest.restoreAllMocks();
-        jest.spyOn(Date, "now").mockReturnValue(now);
 
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
 
@@ -630,10 +665,10 @@ describe("getDaysPresentLeaderboard", () => {
     });
 
     it("does not double-count today if active user already has DB entry for today", () => {
-        const now = Date.now();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
-        // Insert a completed session for today
+        // Insert a completed session for today (well within the shifted day)
         const Database = require("better-sqlite3");
         const db = new Database(dbPath);
         db.prepare(
@@ -649,7 +684,7 @@ describe("getDaysPresentLeaderboard", () => {
     });
 
     it("returns empty map when no data exists", () => {
-        const now = Date.now();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
         const counts = voiceTime.getDaysPresentLeaderboard("guild1", 7);
@@ -657,7 +692,7 @@ describe("getDaysPresentLeaderboard", () => {
     });
 
     it("ignores active sessions from other guilds", () => {
-        const now = Date.now();
+        const now = new Date("2025-06-15T12:00:00Z").getTime();
         jest.spyOn(Date, "now").mockReturnValue(now);
 
         voiceTime.handleVoiceJoin("guild2", "user1", "channel1");

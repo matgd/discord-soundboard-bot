@@ -195,17 +195,20 @@ function getVoiceTimeLeaderboard(guildId, days) {
 
 /**
  * Returns the number of distinct days each user was present in voice for a given guild and time window.
+ * Days are counted from 4:00 AM to 4:00 AM to avoid splitting late-night sessions across two days.
  * @param {string} guildId
  * @param {number} days - Number of days to look back
  * @returns {Map<string, number>} Map of userId -> distinct day count
  */
+const DAY_SHIFT_MS = 4 * 60 * 60 * 1000; // 4 hours in ms
+
 function getDaysPresentLeaderboard(guildId, days) {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
-    // Count distinct dates (in local server time via UTC) per user from completed sessions
+    // Subtract 4h from timestamps so that 04:00 becomes the day boundary
     const rows = getDb()
         .prepare(
-            `SELECT user_id, COUNT(DISTINCT date(joined_at / 1000, 'unixepoch')) AS day_count
+            `SELECT user_id, COUNT(DISTINCT date((joined_at - ${DAY_SHIFT_MS}) / 1000, 'unixepoch')) AS day_count
              FROM voice_sessions
              WHERE guild_id = ? AND joined_at >= ?
              GROUP BY user_id`,
@@ -217,17 +220,18 @@ function getDaysPresentLeaderboard(guildId, days) {
         counts.set(row.user_id, row.day_count);
     }
 
-    // Add today for any user currently in a voice channel in this guild
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // Add current "shifted day" for any user currently in a voice channel in this guild
+    const shiftedNow = new Date(Date.now() - DAY_SHIFT_MS);
+    const todayStr = shiftedNow.toISOString().slice(0, 10);
     for (const [key] of activeSessions.entries()) {
         const [sessionGuildId, userId] = key.split(":");
         if (sessionGuildId !== guildId) continue;
 
-        // Check if today is already counted from DB rows
+        // Check if this shifted day is already counted from DB rows
         const alreadyHasToday = getDb()
             .prepare(
                 `SELECT 1 FROM voice_sessions
-                 WHERE guild_id = ? AND user_id = ? AND date(joined_at / 1000, 'unixepoch') = ?
+                 WHERE guild_id = ? AND user_id = ? AND date((joined_at - ${DAY_SHIFT_MS}) / 1000, 'unixepoch') = ?
                  LIMIT 1`,
             )
             .get(guildId, userId, todayStr);
