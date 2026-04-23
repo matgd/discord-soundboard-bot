@@ -88,4 +88,6 @@ module.exports = {
             flags: [MessageFlags.Ephemeral],
         });
     },
+    buildWeekTicksRow,
+    getLastSevenDays,
 };
