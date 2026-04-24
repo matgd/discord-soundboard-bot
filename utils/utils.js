@@ -32,10 +32,10 @@ function replacePolishChars(str) {
  * @returns {string} The normalized ID.
  */
 function basenameToId(basename) {
-    let modifiedBasename = replacePolishChars(basename);
+    let modifiedBasename = replacePolishChars(basename.toLowerCase());
     modifiedBasename = modifiedBasename.replace(/[^a-zA-Z0-9\[\]\(\)]/g, " ");
     modifiedBasename = modifiedBasename.replace("  ", ") ");
-    return modifiedBasename.toLowerCase();
+    return modifiedBasename;
 }
 
 /**
