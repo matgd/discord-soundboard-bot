@@ -82,9 +82,9 @@ module.exports = {
         const sorted = [...leaderboard.entries()].sort((a, b) => b[1].length - a[1].length);
 
         const showWeek = days <= 7;
-        const showMonth = days === 28;
+        const showMonth = days === 14 || days === 28;
         const weekDays = showWeek ? getLastSevenDays() : [];
-        const monthDays = showMonth ? getLastNDays(28) : [];
+        const monthDays = showMonth ? getLastNDays(days) : [];
 
         const lines = [];
         for (let i = 0; i < sorted.length; i++) {
