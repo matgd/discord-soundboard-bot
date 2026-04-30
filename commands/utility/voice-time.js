@@ -4,6 +4,7 @@ const { getRankMedal } = require("../../utils/utils");
 const strings = require("../../localization/strings");
 
 const PERIOD_CHOICES = [
+    { name: "Today (since 4 AM)", name_localizations: { pl: "Dzisiaj (od 4 rano)" }, value: 0 },
     { name: "Last 7 days", name_localizations: { pl: "Ostatnie 7 dni" }, value: 7 },
     { name: "Last 14 days", name_localizations: { pl: "Ostatnie 14 dni" }, value: 14 },
     { name: "Last 30 days", name_localizations: { pl: "Ostatnie 30 dni" }, value: 30 },
@@ -27,7 +28,7 @@ module.exports = {
                 .addChoices(...PERIOD_CHOICES),
         ),
     async execute(interaction) {
-        const days = interaction.options.getInteger("period") || 7;
+        const days = interaction.options.getInteger("period") ?? 7;
         const lang = interaction.locale?.startsWith("pl") ? "pl" : "en";
         const t = strings[lang];
 
@@ -49,8 +50,12 @@ module.exports = {
             lines.push(`${getRankMedal(i)} <@${userId}> — ${formatDuration(duration)}`);
         }
 
+        const title = days === 0
+            ? t.VOICE_TIME_TITLE_TODAY
+            : strings.interpolate(t.VOICE_TIME_TITLE, { days });
+
         const embed = new EmbedBuilder()
-            .setTitle(strings.interpolate(t.VOICE_TIME_TITLE, { days }))
+            .setTitle(title)
             .setDescription(lines.join("\n"))
             .setColor(0x5865f2)
             .setTimestamp();

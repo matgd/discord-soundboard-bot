@@ -160,7 +160,19 @@ function recoverActiveSessions(client) {
  * @returns {Map<string, number>} Map of userId -> total duration in ms
  */
 function getVoiceTimeLeaderboard(guildId, days) {
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    let cutoff;
+    if (days === 0) {
+        // "Today" = since 4 AM local time
+        const now = new Date();
+        now.setHours(4, 0, 0, 0);
+        if (Date.now() < now.getTime()) {
+            // Before 4 AM — use yesterday's 4 AM
+            now.setDate(now.getDate() - 1);
+        }
+        cutoff = now.getTime();
+    } else {
+        cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    }
 
     const rows = getDb()
         .prepare(
