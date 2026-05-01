@@ -20,31 +20,29 @@ describe("buildWeekTicksRow", () => {
         const dayDates = ["2026-04-17", "2026-04-20", "2026-04-23"];
         const result = buildWeekTicksRow(weekDays, dayDates, t);
 
-        const [headerLine, ticksLine] = result.split("\n");
-        expect(headerLine).toBe("`Pt  So  Nd  Pn  Wt  Śr  Cz`");
-        expect(ticksLine).toContain("■");
-        // Present days should have ■
-        expect([...ticksLine].filter((c) => c === "■").length).toBe(3);
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "` ■           ■           ■`"
+        );
     });
 
     it("shows all filled squares when present every day", () => {
         const dayDates = weekDays.map((d) => d.dateStr);
         const result = buildWeekTicksRow(weekDays, dayDates, t);
-        const ticksLine = result.split("\n")[1];
-        expect([...ticksLine].filter((c) => c === "■").length).toBe(7);
+
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "` ■   ■   ■   ■   ■   ■   ■`"
+        );
     });
 
     it("shows no filled squares when absent every day", () => {
         const result = buildWeekTicksRow(weekDays, [], t);
-        const ticksLine = result.split("\n")[1];
-        expect(ticksLine).not.toContain("■");
-    });
 
-    it("wraps header and ticks in backticks", () => {
-        const result = buildWeekTicksRow(weekDays, [], t);
-        const lines = result.split("\n");
-        expect(lines[0]).toMatch(/^`.*`$/);
-        expect(lines[1]).toMatch(/^`.*`$/);
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "`                          `"
+        );
     });
 });
 
@@ -123,52 +121,41 @@ describe("buildMonthGrid", () => {
         });
     }
 
-    it("produces 5 lines: 1 header + 4 week rows", () => {
-        const result = buildMonthGrid(allDays, [], t);
-        const lines = result.split("\n");
-        expect(lines).toHaveLength(5);
-    });
-
-    it("header shows day-of-week abbreviations", () => {
-        const result = buildMonthGrid(allDays, [], t);
-        const header = result.split("\n")[0];
-        expect(header).toBe("`Pt  So  Nd  Pn  Wt  Śr  Cz`");
-    });
-
-    it("shows day-of-month numbers for present days", () => {
+    it("produces header and 4 week rows with day-of-month numbers for present days", () => {
         const dayDates = ["2026-03-27", "2026-04-05", "2026-04-15"];
         const result = buildMonthGrid(allDays, dayDates, t);
-        const lines = result.split("\n");
-        // First week row should contain 27 (Mar 27)
-        expect(lines[1]).toContain("27");
-        // Second week row should contain 5 (Apr 5)
-        expect(lines[2]).toContain(" 5");
-        // Third week row should contain 15 (Apr 15)
-        expect(lines[3]).toContain("15");
+
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "`27                        `\n" +
+            "`         5                `\n" +
+            "`                    15    `\n" +
+            "`                          `"
+        );
     });
 
     it("shows spaces for absent days", () => {
         const result = buildMonthGrid(allDays, [], t);
-        const lines = result.split("\n");
-        // No numbers should appear in week rows
-        for (let i = 1; i < lines.length; i++) {
-            expect(lines[i]).not.toMatch(/\d/);
-        }
-    });
 
-    it("all lines are wrapped in backticks", () => {
-        const result = buildMonthGrid(allDays, [], t);
-        for (const line of result.split("\n")) {
-            expect(line).toMatch(/^`.*`$/);
-        }
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "`                          `\n" +
+            "`                          `\n" +
+            "`                          `\n" +
+            "`                          `"
+        );
     });
 
     it("shows all 28 day numbers when present every day", () => {
         const dayDates = allDays.map((d) => d.dateStr);
         const result = buildMonthGrid(allDays, dayDates, t);
-        const lines = result.split("\n");
-        // Count all numbers in week rows
-        const allNumbers = lines.slice(1).join("").match(/\d+/g);
-        expect(allNumbers).toHaveLength(28);
+
+        expect(result).toBe(
+            "`Pt  So  Nd  Pn  Wt  Śr  Cz`\n" +
+            "`27  28  29  30  31   1   2`\n" +
+            "` 3   4   5   6   7   8   9`\n" +
+            "`10  11  12  13  14  15  16`\n" +
+            "`17  18  19  20  21  22  23`"
+        );
     });
 });
