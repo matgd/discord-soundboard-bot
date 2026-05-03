@@ -45,7 +45,7 @@ module.exports = {
     DAYS_PRESENT_TITLE: "Days present — last {days} days",
     DAYS_PRESENT_NO_DATA: "No voice presence data for this period.",
     DAY_NAMES: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-    DAY_SHORT: ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"],
+    DAY_SHORT: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
   },
   pl: {
     DISCONNECT_BOT_FROM_THE_VOICE_CHANNEL: "Rozłącza bota z kanału głosowego.",
