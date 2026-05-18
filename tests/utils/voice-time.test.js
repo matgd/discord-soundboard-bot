@@ -74,17 +74,15 @@ describe("ensureVoiceTimeFileExists", () => {
 });
 
 describe("handleVoiceJoin / handleVoiceLeave", () => {
-    it("persists a session when user leaves after >10s", () => {
+    it("persists a session when user leaves after >10s with a companion", () => {
         const now = 1_000_000_000_000;
-        jest.spyOn(Date, "now")
-            .mockReturnValueOnce(now) // joinedAt inside handleVoiceJoin
-            .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
-            .mockReturnValueOnce(now + 20_000) // Date.now() - session.joinedAt in handleVoiceLeave
-            .mockReturnValueOnce(now + 20_000) // saveActiveSessions in handleVoiceLeave
-            .mockReturnValueOnce(now + 20_000) // duration check in handleVoiceLeave
-            .mockReturnValueOnce(now + 20_000); // pruneOldEntries
+        jest.spyOn(Date, "now").mockReturnValue(now);
 
+        // user2 is a companion in the same channel
+        voiceTime.handleVoiceJoin("guild1", "user2", "channel1");
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        Date.now.mockReturnValue(now + 20_000);
         voiceTime.handleVoiceLeave("guild1", "user1");
 
         const Database = require("better-sqlite3");
@@ -99,6 +97,23 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
             channel_id: "channel1",
             duration: 20_000,
         });
+    });
+
+    it("does not persist a session when user is alone in the channel", () => {
+        const now = 1_000_000_000_000;
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        Date.now.mockReturnValue(now + 20_000);
+        voiceTime.handleVoiceLeave("guild1", "user1");
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(0);
     });
 
     it("saves active sessions to disk on join", () => {
@@ -156,15 +171,13 @@ describe("handleVoiceJoin / handleVoiceLeave", () => {
         ).run("guild1", "user2", "channel1", now - 366 * 24 * 60 * 60 * 1000, 60_000);
         db.close();
 
-        jest.spyOn(Date, "now")
-            .mockReturnValueOnce(now) // joinedAt
-            .mockReturnValueOnce(now) // saveActiveSessions in handleVoiceJoin
-            .mockReturnValueOnce(now + 15_000) // duration calc
-            .mockReturnValueOnce(now + 15_000) // saveActiveSessions in handleVoiceLeave
-            .mockReturnValueOnce(now + 15_000) // duration check
-            .mockReturnValueOnce(now + 15_000); // pruneOldEntries cutoff
+        jest.spyOn(Date, "now").mockReturnValue(now);
 
+        // user3 is a companion so user1's session gets saved
+        voiceTime.handleVoiceJoin("guild1", "user3", "channel1");
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        Date.now.mockReturnValue(now + 15_000);
         voiceTime.handleVoiceLeave("guild1", "user1");
 
         db = new Database(dbPath);
@@ -375,19 +388,21 @@ describe("recoverActiveSessions", () => {
         expect(leaderboard.get("user1")).toBe(3600_000);
     });
 
-    it("finalizes sessions for users who left while bot was down", () => {
+    it("finalizes sessions for users who left while bot was down with companion", () => {
         const now = 1_000_000_000_000;
         const joinedAt = now - 3600_000; // joined 1 hour ago
         const savedAt = now - 60_000; // saved 1 min ago
         jest.spyOn(Date, "now").mockReturnValue(now);
 
+        // Both user1 and user2 were in the same channel
         const savedSessions = {
             "guild1:user1": { channelId: "vc1", joinedAt },
+            "guild1:user2": { channelId: "vc1", joinedAt: joinedAt + 1000 },
             _savedAt: savedAt,
         };
         fs.writeFileSync(activeSessionsPath, JSON.stringify(savedSessions));
 
-        // Empty server — user1 left while bot was down
+        // Empty server — both left while bot was down
         const mockClient = {
             guilds: {
                 cache: new Map([
@@ -415,27 +430,82 @@ describe("recoverActiveSessions", () => {
 
         voiceTime.recoverActiveSessions(mockClient);
 
-        // Should have written a completed session to the DB
+        // Should have written completed sessions for both users
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions ORDER BY user_id").all();
+        db.close();
+
+        expect(rows).toHaveLength(2);
+        expect(rows[0]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user1",
+            duration: savedAt - joinedAt,
+        });
+        expect(rows[1]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user2",
+            duration: savedAt - (joinedAt + 1000),
+        });
+    });
+
+    it("does not finalize solo sessions for users who left while bot was down", () => {
+        const now = 1_000_000_000_000;
+        const joinedAt = now - 3600_000;
+        const savedAt = now - 60_000;
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        // user1 was alone in the channel
+        const savedSessions = {
+            "guild1:user1": { channelId: "vc1", joinedAt },
+            _savedAt: savedAt,
+        };
+        fs.writeFileSync(activeSessionsPath, JSON.stringify(savedSessions));
+
+        const mockClient = {
+            guilds: {
+                cache: new Map([
+                    [
+                        "guild1",
+                        {
+                            id: "guild1",
+                            channels: {
+                                cache: new Map([
+                                    [
+                                        "vc1",
+                                        {
+                                            id: "vc1",
+                                            isVoiceBased: () => true,
+                                            members: new Map(),
+                                        },
+                                    ],
+                                ]),
+                            },
+                        },
+                    ],
+                ]),
+            },
+        };
+
+        voiceTime.recoverActiveSessions(mockClient);
+
         const Database = require("better-sqlite3");
         const db = new Database(dbPath);
         const rows = db.prepare("SELECT * FROM voice_sessions").all();
         db.close();
 
-        expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({
-            guild_id: "guild1",
-            user_id: "user1",
-            duration: savedAt - joinedAt, // time up to last save
-        });
+        expect(rows).toHaveLength(0);
     });
 });
 
 describe("flushActiveSessions", () => {
-    it("persists all active sessions and clears the map", () => {
+    it("persists sessions with companions and clears the map", () => {
         const now = 1_000_000_000_000;
         jest.spyOn(Date, "now").mockReturnValue(now);
 
+        // Two users in the same channel
         voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+        voiceTime.handleVoiceJoin("guild1", "user2", "channel1");
 
         // Advance time
         Date.now.mockReturnValue(now + 60_000);
@@ -444,15 +514,37 @@ describe("flushActiveSessions", () => {
 
         const Database = require("better-sqlite3");
         const db = new Database(dbPath);
-        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        const rows = db.prepare("SELECT * FROM voice_sessions ORDER BY user_id").all();
         db.close();
 
-        expect(rows).toHaveLength(1);
+        expect(rows).toHaveLength(2);
         expect(rows[0]).toMatchObject({
             guild_id: "guild1",
             user_id: "user1",
             duration: 60_000,
         });
+        expect(rows[1]).toMatchObject({
+            guild_id: "guild1",
+            user_id: "user2",
+            duration: 60_000,
+        });
+    });
+
+    it("does not persist solo sessions on flush", () => {
+        const now = 1_000_000_000_000;
+        jest.spyOn(Date, "now").mockReturnValue(now);
+
+        voiceTime.handleVoiceJoin("guild1", "user1", "channel1");
+
+        Date.now.mockReturnValue(now + 60_000);
+        voiceTime.flushActiveSessions();
+
+        const Database = require("better-sqlite3");
+        const db = new Database(dbPath);
+        const rows = db.prepare("SELECT * FROM voice_sessions").all();
+        db.close();
+
+        expect(rows).toHaveLength(0);
     });
 });
 

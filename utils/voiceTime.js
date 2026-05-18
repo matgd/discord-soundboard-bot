@@ -77,7 +77,38 @@ function handleVoiceJoin(guildId, userId, channelId) {
 }
 
 /**
+ * Checks if a session had at least one companion (another user in the same channel
+ * with overlapping time).
+ */
+function hadCompanion(guildId, userId, channelId, joinedAt, leftAt) {
+    // Check active sessions (other users currently in the same channel)
+    for (const [key, session] of activeSessions.entries()) {
+        const [sessionGuildId, sessionUserId] = key.split(":");
+        if (sessionGuildId !== guildId) continue;
+        if (sessionUserId === userId) continue;
+        if (session.channelId !== channelId) continue;
+        // Active user joined before this session ended = overlap
+        if (session.joinedAt < leftAt) {
+            return true;
+        }
+    }
+
+    // Check completed sessions in the DB for overlap
+    const row = getDb()
+        .prepare(
+            `SELECT 1 FROM voice_sessions
+             WHERE guild_id = ? AND user_id != ? AND channel_id = ?
+             AND joined_at < ? AND (joined_at + duration) > ?
+             LIMIT 1`,
+        )
+        .get(guildId, userId, channelId, leftAt, joinedAt);
+
+    return !!row;
+}
+
+/**
  * Records a user leaving a voice channel and persists the session.
+ * Only saves if another user was present in the same channel during the session.
  */
 function handleVoiceLeave(guildId, userId) {
     const key = `${guildId}:${userId}`;
@@ -90,6 +121,10 @@ function handleVoiceLeave(guildId, userId) {
     const duration = Date.now() - session.joinedAt;
     // Ignore sessions shorter than 10 seconds (likely transient)
     if (duration < 10_000) return;
+
+    const leftAt = session.joinedAt + duration;
+    // Only save if someone else was in the same channel during this session
+    if (!hadCompanion(guildId, userId, session.channelId, session.joinedAt, leftAt)) return;
 
     insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
     pruneOldEntries();
@@ -131,16 +166,34 @@ function recoverActiveSessions(client) {
 
     // Finalize sessions for users who left while bot was down
     if (saved) {
+        // Collect sessions to finalize
+        const toFinalize = [];
         for (const [key, session] of Object.entries(saved)) {
             if (key === "_savedAt") continue;
             if (currentUsers.has(key)) continue;
 
-            // User was in voice before restart but is no longer — record up to savedAt
             const duration = savedAt - session.joinedAt;
             if (duration < 10_000) continue;
 
             const [guildId, userId] = key.split(":");
-            insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
+            toFinalize.push({ guildId, userId, channelId: session.channelId, joinedAt: session.joinedAt, leftAt: savedAt });
+        }
+
+        // Only save sessions where at least one companion was present
+        for (const s of toFinalize) {
+            // Check against other sessions in this batch (users who also left while bot was down)
+            const hasCompanionInBatch = toFinalize.some(
+                (other) =>
+                    other !== s &&
+                    other.guildId === s.guildId &&
+                    other.channelId === s.channelId &&
+                    other.joinedAt < s.leftAt &&
+                    other.leftAt > s.joinedAt,
+            );
+
+            if (hasCompanionInBatch || hadCompanion(s.guildId, s.userId, s.channelId, s.joinedAt, s.leftAt)) {
+                insertSession(s.guildId, s.userId, s.channelId, s.joinedAt, s.leftAt - s.joinedAt);
+            }
         }
         pruneOldEntries();
     }
@@ -277,6 +330,8 @@ function flushActiveSessions() {
             if (duration < 10_000) continue;
 
             const [guildId, userId] = key.split(":");
+            // Only save if someone else is in the same channel
+            if (!hadCompanion(guildId, userId, session.channelId, session.joinedAt, session.joinedAt + duration)) continue;
             insertSession(guildId, userId, session.channelId, session.joinedAt, duration);
         }
     });
