@@ -74,10 +74,8 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -133,7 +131,5 @@ dist
 config.json
 config.json.dev
 sounds/
-dataStore/saved-data.json
-dataStore/voice-time.db
-dataStore/voice-time.json
+dataStore/
 __pycache__/
